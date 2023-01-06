@@ -372,6 +372,9 @@ struct dp_catalog_sub *dp_catalog_get_v420(struct device *dev,
 struct dp_catalog_sub *dp_catalog_get_v200(struct device *dev,
 			struct dp_catalog *catalog, struct dp_catalog_io *io);
 
+struct dp_catalog_sub *dp_catalog_get_v500(struct device *dev,
+			struct dp_catalog *catalog, struct dp_catalog_io *io);
+
 u32 dp_catalog_get_dp_core_version(struct dp_catalog *dp_catalog);
 u32 dp_catalog_get_dp_phy_version(struct dp_catalog *dp_catalog);
 #endif /* _DP_CATALOG_H_ */
