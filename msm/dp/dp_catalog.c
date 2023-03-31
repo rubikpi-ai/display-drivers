@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
  */
 
@@ -3108,6 +3108,7 @@ struct dp_catalog *dp_catalog_get(struct device *dev, struct dp_parser *parser)
 	}
 
 	dp_catalog = &catalog->dp_catalog;
+	dp_catalog->parser = parser;
 
 	dp_catalog->aux   = aux;
 	dp_catalog->ctrl  = ctrl;

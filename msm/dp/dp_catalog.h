@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
  */
 
@@ -291,6 +291,7 @@ struct dp_catalog {
 	struct dp_catalog_hpd hpd;
 
 	struct dp_catalog_sub *sub;
+	struct dp_parser *parser;
 
 	void (*set_exe_mode)(struct dp_catalog *dp_catalog, char *mode);
 	int (*get_reg_dump)(struct dp_catalog *dp_catalog,

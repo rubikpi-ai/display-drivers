@@ -168,6 +168,12 @@ static int dp_parser_misc(struct dp_parser *parser)
 	if (rc)
 		parser->max_lclk_khz = DP_MAX_LINK_CLK_KHZ;
 
+	for (i = 0; i < MAX_DP_MST_STREAMS; i++) {
+		of_property_read_u32_index(of_node,
+				"qcom,pclk-reg-off", i,
+				&parser->pixel_base_off[i]);
+	}
+
 	return 0;
 }
 
