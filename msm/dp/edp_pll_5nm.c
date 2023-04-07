@@ -17,7 +17,6 @@
  *
  */
 
-#include <dt-bindings/clock/mdss-5nm-pll-clk.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/err.h>
@@ -36,7 +35,7 @@
 
 #define DP_PHY_AUX_CFG2				0x002C
 
-#define DP_PHY_VCO_DIV				0x0074
+#define EDP_PHY_VCO_DIV				0x0074
 #define DP_PHY_TX0_TX1_LANE_CTL			0x007C
 #define DP_PHY_TX2_TX3_LANE_CTL			0x00A0
 
@@ -123,6 +122,17 @@
 #define DP_5NM_PHY_READY	BIT(1)
 #define DP_5NM_TSYNC_DONE	BIT(0)
 
+static const struct dp_pll_params pll_params[HSCLK_RATE_MAX] = {
+	{0x05, 0x3f, 0x00, 0x04, 0x01, 0x69, 0x00, 0x80, 0x07, 0x6f, 0x08, 0x45, 0x06, 0x36, 0x01,
+		0x00, 0x00, 0x0f, 0x0a, 0x0f, 0x0a, 0x11},
+	{0x03, 0x3f, 0x00, 0x08, 0x01, 0x69, 0x00, 0x80, 0x07, 0x0f, 0x0e, 0x45, 0x06, 0x36, 0x01,
+		0x00, 0x00, 0x0f, 0x0a, 0x0f, 0x0a, 0x11},
+	{0x01, 0x3f, 0x00, 0x08, 0x02, 0x8c, 0x00, 0x00, 0x0a, 0x1f, 0x1c, 0x5c, 0x08, 0x36, 0x01,
+		0x00, 0x00, 0x0f, 0x0a, 0x0f, 0x0a, 0x11},
+	{0x00, 0x3f, 0x00, 0x08, 0x00, 0x69, 0x00, 0x80, 0x07, 0x2f, 0x2a, 0x45, 0x06, 0x36, 0x01,
+		0x00, 0x00, 0x0f, 0x0a, 0x0f, 0x0a, 0x11},
+};
+
 static int edp_vco_pll_init_db_5nm(struct dp_pll_db *pdb,
 		unsigned long rate)
 {
@@ -136,62 +146,22 @@ static int edp_vco_pll_init_db_5nm(struct dp_pll_db *pdb,
 	DP_DEBUG("spare_value=0x%x, ln_cnt=0x%x, orientation=0x%x\n",
 			spare_value, pdb->lane_cnt, pdb->orientation);
 
-	pdb->div_frac_start1_mode0 = 0x00;
-	pdb->integloop_gain0_mode0 = 0x3f;
-	pdb->integloop_gain1_mode0 = 0x00;
-
 	switch (rate) {
 	case DP_VCO_HSCLK_RATE_1620MHZDIV1000:
 		DP_DEBUG("VCO rate: %ld\n", DP_VCO_RATE_9720MHZDIV1000);
-		pdb->hsclk_sel = 0x05;
-		pdb->dec_start_mode0 = 0x69;
-		pdb->div_frac_start2_mode0 = 0x80;
-		pdb->div_frac_start3_mode0 = 0x07;
-		pdb->lock_cmp1_mode0 = 0x6f;
-		pdb->lock_cmp2_mode0 = 0x08;
-		pdb->phy_vco_div = 0x1;
-		pdb->lock_cmp_en = 0x04;
-		pdb->ssc_step_size1_mode0 = 0x45;
-		pdb->ssc_step_size2_mode0 = 0x06;
+		pdb->rate_idx = HSCLK_RATE_1620MHZ;
 		break;
 	case DP_VCO_HSCLK_RATE_2700MHZDIV1000:
 		DP_DEBUG("VCO rate: %ld\n", DP_VCO_RATE_10800MHZDIV1000);
-		pdb->hsclk_sel = 0x03;
-		pdb->dec_start_mode0 = 0x69;
-		pdb->div_frac_start2_mode0 = 0x80;
-		pdb->div_frac_start3_mode0 = 0x07;
-		pdb->lock_cmp1_mode0 = 0x0f;
-		pdb->lock_cmp2_mode0 = 0x0e;
-		pdb->phy_vco_div = 0x1;
-		pdb->lock_cmp_en = 0x08;
-		pdb->ssc_step_size1_mode0 = 0x45;
-		pdb->ssc_step_size2_mode0 = 0x06;
+		pdb->rate_idx = HSCLK_RATE_2700MHZ;
 		break;
 	case DP_VCO_HSCLK_RATE_5400MHZDIV1000:
 		DP_DEBUG("VCO rate: %ld\n", DP_VCO_RATE_10800MHZDIV1000);
-		pdb->hsclk_sel = 0x01;
-		pdb->dec_start_mode0 = 0x8c;
-		pdb->div_frac_start2_mode0 = 0x00;
-		pdb->div_frac_start3_mode0 = 0x0a;
-		pdb->lock_cmp1_mode0 = 0x1f;
-		pdb->lock_cmp2_mode0 = 0x1c;
-		pdb->phy_vco_div = 0x2;
-		pdb->lock_cmp_en = 0x08;
-		pdb->ssc_step_size1_mode0 = 0x5c;
-		pdb->ssc_step_size2_mode0 = 0x08;
+		pdb->rate_idx = HSCLK_RATE_5400MHZ;
 		break;
 	case DP_VCO_HSCLK_RATE_8100MHZDIV1000:
 		DP_DEBUG("VCO rate: %ld\n", DP_VCO_RATE_8100MHZDIV1000);
-		pdb->hsclk_sel = 0x00;
-		pdb->dec_start_mode0 = 0x69;
-		pdb->div_frac_start2_mode0 = 0x80;
-		pdb->div_frac_start3_mode0 = 0x07;
-		pdb->lock_cmp1_mode0 = 0x2f;
-		pdb->lock_cmp2_mode0 = 0x2a;
-		pdb->phy_vco_div = 0x0;
-		pdb->lock_cmp_en = 0x08;
-		pdb->ssc_step_size1_mode0 = 0x45;
-		pdb->ssc_step_size2_mode0 = 0x06;
+		pdb->rate_idx = HSCLK_RATE_8100MHZ;
 		break;
 	default:
 		DP_ERR("unsupported rate %ld\n", rate);
@@ -205,6 +175,7 @@ static int edp_config_vco_rate_5nm(struct dp_pll *pll,
 {
 	int rc;
 	struct dp_pll_db *pdb = &pll->pll_db;
+	const struct dp_pll_params *params;
 	u32 status;
 
 	rc = edp_vco_pll_init_db_5nm(pdb, rate);
@@ -217,6 +188,13 @@ static int edp_config_vco_rate_5nm(struct dp_pll *pll,
 	dp_pll_write(dp_phy, DP_PHY_MODE, 0xfc);
 	/* Make sure the PLL register writes are done */
 	wmb();
+
+	if (pdb->rate_idx < HSCLK_RATE_MAX) {
+		params = &pdb->pll_params[pdb->rate_idx];
+	} else {
+		DP_ERR("link rate not set\n");
+		return -EINVAL;
+	}
 
 	if (readl_poll_timeout_atomic((dp_pll_get_base(dp_pll) +
 				QSERDES_COM_CMN_STATUS),
@@ -233,12 +211,12 @@ static int edp_config_vco_rate_5nm(struct dp_pll *pll,
 	if (pll->ssc_en) {
 		dp_pll_write(dp_pll, QSERDES_COM_SSC_EN_CENTER, 0x01);
 		dp_pll_write(dp_pll, QSERDES_COM_SSC_ADJ_PER1, 0x00);
-		dp_pll_write(dp_pll, QSERDES_COM_SSC_PER1, 0x36);
-		dp_pll_write(dp_pll, QSERDES_COM_SSC_PER2, 0x01);
+		dp_pll_write(dp_pll, QSERDES_COM_SSC_PER1, params->ssc_per1);
+		dp_pll_write(dp_pll, QSERDES_COM_SSC_PER2, params->ssc_per2);
 		dp_pll_write(dp_pll, QSERDES_COM_SSC_STEP_SIZE1_MODE0,
-				pdb->ssc_step_size1_mode0);
+				params->ssc_step_size1_mode0);
 		dp_pll_write(dp_pll, QSERDES_COM_SSC_STEP_SIZE2_MODE0,
-				pdb->ssc_step_size2_mode0);
+				params->ssc_step_size2_mode0);
 	}
 
 	dp_pll_write(dp_pll, QSERDES_COM_SVS_MODE_CLK_SEL, 0x01);
@@ -248,43 +226,43 @@ static int edp_config_vco_rate_5nm(struct dp_pll *pll,
 	dp_pll_write(dp_pll, QSERDES_COM_SYSCLK_BUF_ENABLE, 0x06);
 	dp_pll_write(dp_pll, QSERDES_COM_CLK_SEL, 0x30);
 	dp_pll_write(dp_pll,
-		QSERDES_COM_HSCLK_SEL, pdb->hsclk_sel);
-	dp_pll_write(dp_pll, QSERDES_COM_PLL_IVCO, 0x0f);
+		QSERDES_COM_HSCLK_SEL, params->hsclk_sel);
+	dp_pll_write(dp_pll, QSERDES_COM_PLL_IVCO, params->pll_ivco);
 	dp_pll_write(dp_pll,
-		QSERDES_COM_LOCK_CMP_EN, pdb->lock_cmp_en);
+		QSERDES_COM_LOCK_CMP_EN, params->lock_cmp_en);
 	dp_pll_write(dp_pll, QSERDES_COM_PLL_CCTRL_MODE0, 0x36);
 	dp_pll_write(dp_pll, QSERDES_COM_PLL_RCTRL_MODE0, 0x16);
 	dp_pll_write(dp_pll, QSERDES_COM_CP_CTRL_MODE0, 0x06);
 	dp_pll_write(dp_pll,
-		QSERDES_COM_DEC_START_MODE0, pdb->dec_start_mode0);
+		QSERDES_COM_DEC_START_MODE0, params->dec_start_mode0);
 	dp_pll_write(dp_pll,
-		QSERDES_COM_DIV_FRAC_START1_MODE0, pdb->div_frac_start1_mode0);
+		QSERDES_COM_DIV_FRAC_START1_MODE0, params->div_frac_start1_mode0);
 	dp_pll_write(dp_pll,
-		QSERDES_COM_DIV_FRAC_START2_MODE0, pdb->div_frac_start2_mode0);
+		QSERDES_COM_DIV_FRAC_START2_MODE0, params->div_frac_start2_mode0);
 	dp_pll_write(dp_pll,
-		QSERDES_COM_DIV_FRAC_START3_MODE0, pdb->div_frac_start3_mode0);
+		QSERDES_COM_DIV_FRAC_START3_MODE0, params->div_frac_start3_mode0);
 	dp_pll_write(dp_pll,
 		QSERDES_COM_CMN_CONFIG, 0x02);
 	dp_pll_write(dp_pll,
-		QSERDES_COM_INTEGLOOP_GAIN0_MODE0, pdb->integloop_gain0_mode0);
+		QSERDES_COM_INTEGLOOP_GAIN0_MODE0, params->integloop_gain0_mode0);
 	dp_pll_write(dp_pll,
-		QSERDES_COM_INTEGLOOP_GAIN1_MODE0, pdb->integloop_gain1_mode0);
+		QSERDES_COM_INTEGLOOP_GAIN1_MODE0, params->integloop_gain1_mode0);
 	dp_pll_write(dp_pll,
 		QSERDES_COM_VCO_TUNE_MAP, 0x00);
 	dp_pll_write(dp_pll,
-		QSERDES_COM_LOCK_CMP1_MODE0, pdb->lock_cmp1_mode0);
+		QSERDES_COM_LOCK_CMP1_MODE0, params->lock_cmp1_mode0);
 	dp_pll_write(dp_pll,
-		QSERDES_COM_LOCK_CMP2_MODE0, pdb->lock_cmp2_mode0);
-	dp_pll_write(dp_phy, DP_PHY_VCO_DIV, pdb->phy_vco_div);
+		QSERDES_COM_LOCK_CMP2_MODE0, params->lock_cmp2_mode0);
+	dp_pll_write(dp_phy, EDP_PHY_VCO_DIV, params->phy_vco_div);
 	/* Make sure the PLL register writes are done */
 	wmb();
 
-	dp_pll_write(dp_pll, QSERDES_COM_BG_TIMER, 0x0a);
+	dp_pll_write(dp_pll, QSERDES_COM_BG_TIMER, params->bg_timer);
 	dp_pll_write(dp_pll, QSERDES_COM_CORECLK_DIV_MODE0, 0x14);
 	dp_pll_write(dp_pll, QSERDES_COM_VCO_TUNE_CTRL, 0x00);
 	dp_pll_write(dp_pll,
 		QSERDES_COM_BIAS_EN_CLKBUFLR_EN, 0x17);
-	dp_pll_write(dp_pll, QSERDES_COM_CORE_CLK_EN, 0x0f);
+	dp_pll_write(dp_pll, QSERDES_COM_CORE_CLK_EN, params->core_clk_en);
 	/* Make sure the PHY register writes are done */
 	wmb();
 
@@ -521,7 +499,7 @@ static int edp_vco_clk_set_div(struct dp_pll *pll, unsigned int div)
 	if (is_gdsc_disabled(pll))
 		return -EINVAL;
 
-	val = dp_pll_read(dp_phy, DP_PHY_VCO_DIV);
+	val = dp_pll_read(dp_phy, EDP_PHY_VCO_DIV);
 	val &= ~0x03;
 
 	switch (div) {
@@ -543,7 +521,7 @@ static int edp_vco_clk_set_div(struct dp_pll *pll, unsigned int div)
 		return -EINVAL;
 	}
 
-	dp_pll_write(dp_phy, DP_PHY_VCO_DIV, val);
+	dp_pll_write(dp_phy, EDP_PHY_VCO_DIV, val);
 	/* Make sure the PHY registers writes are done */
 	wmb();
 
@@ -799,6 +777,7 @@ int edp_pll_clock_register_5nm(struct dp_pll *pll)
 
 	pll->clk_data->clk_num = DP_PLL_NUM_CLKS;
 	pll->pll_db.pll = pll;
+	pll->pll_db.pll_params = pll_params;
 
 	pll->pll_cfg = edp_pll_configure;
 	pll->pll_prepare = edp_pll_prepare;
