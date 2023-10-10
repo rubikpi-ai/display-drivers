@@ -63,6 +63,7 @@ struct dp_display {
 	u32 max_dsc_count;
 	void *dp_ipc_log;
 	void *dp_aux_ipc_log;
+	bool no_backlight_support;
 
 	int (*enable)(struct dp_display *dp_display, void *panel);
 	int (*post_enable)(struct dp_display *dp_display, void *panel);

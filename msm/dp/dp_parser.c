@@ -178,6 +178,9 @@ static int dp_parser_misc(struct dp_parser *parser)
 	if (!parser->display_type)
 		parser->display_type = "unknown";
 
+	parser->no_backlight_support = of_property_read_bool(of_node,
+			"qcom,no-backlight-support");
+
 	return 0;
 }
 
