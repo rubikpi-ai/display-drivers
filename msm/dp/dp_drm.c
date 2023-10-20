@@ -496,6 +496,7 @@ int dp_connector_get_info(struct drm_connector *connector,
 		struct msm_display_info *info, void *data)
 {
 	struct dp_display *display = data;
+	const char *display_type = NULL;
 
 	if (!info || !display || !display->drm_dev) {
 		DP_ERR("invalid params\n");
@@ -503,6 +504,14 @@ int dp_connector_get_info(struct drm_connector *connector,
 	}
 
 	info->intf_type = DRM_MODE_CONNECTOR_DisplayPort;
+
+	display->get_display_type(display, &display_type);
+	if (display_type) {
+		if (!strcmp(display_type, "primary"))
+			info->display_type = SDE_CONNECTOR_PRIMARY;
+		else if (!strcmp(display_type, "secondary"))
+			info->display_type = SDE_CONNECTOR_SECONDARY;
+	}
 
 	info->num_of_h_tiles = 1;
 	info->h_tile_instance[0] = 0;
@@ -512,7 +521,10 @@ int dp_connector_get_info(struct drm_connector *connector,
 
 	if (display && display->is_edp) {
 		info->intf_type = DRM_MODE_CONNECTOR_eDP;
-		info->display_type = SDE_CONNECTOR_PRIMARY;
+		if (display->ext_hpd_en)
+			info->capabilities |= MSM_DISPLAY_CAP_HOT_PLUG;
+		else
+			info->is_connected = true;
 	} else {
 		info->capabilities |= MSM_DISPLAY_CAP_HOT_PLUG;
 	}
@@ -661,6 +673,9 @@ int dp_connector_set_info_blob(struct drm_connector *connector,
 
 	dp_display->get_display_type(dp_display, &display_type);
 	sde_kms_info_add_keystr(info, "display type", display_type);
+
+	if((dp_display->is_edp) && (dp_display->ext_hpd_en))
+		sde_kms_info_add_keystr(info, "ext bridge hpd support", "true");
 
 	return 0;
 }

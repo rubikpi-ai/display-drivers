@@ -2172,6 +2172,8 @@ static int dp_init_sub_modules(struct dp_display_private *dp)
 		goto error;
 	}
 
+	dp->parser->is_edp = dp->dp_display.is_edp;
+
 	rc = dp->parser->parse(dp->parser);
 	if (rc) {
 		DP_ERR("device tree parsing failed\n");
@@ -2182,6 +2184,7 @@ static int dp_init_sub_modules(struct dp_display_private *dp)
 	dp->dp_display.dsc_cont_pps = dp->parser->dsc_continuous_pps;
 
 	dp->dp_display.no_backlight_support = dp->parser->no_backlight_support;
+	dp->dp_display.ext_hpd_en = dp->parser->ext_hpd_en;
 	dp->catalog = dp_catalog_get(dev, dp->parser);
 	if (IS_ERR(dp->catalog)) {
 		rc = PTR_ERR(dp->catalog);

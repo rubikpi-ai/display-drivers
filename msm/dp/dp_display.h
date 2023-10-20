@@ -64,6 +64,7 @@ struct dp_display {
 	void *dp_ipc_log;
 	void *dp_aux_ipc_log;
 	bool no_backlight_support;
+	bool ext_hpd_en;
 
 	int (*enable)(struct dp_display *dp_display, void *panel);
 	int (*post_enable)(struct dp_display *dp_display, void *panel);
