@@ -4,6 +4,10 @@
  * Copyright (c) 2019-2020. Linaro Limited.
  */
 
+/*
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ */
+
 #include <linux/firmware.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
@@ -353,7 +357,31 @@ static int lt9611uxc_connector_init(struct drm_bridge *bridge, struct lt9611uxc 
 		return ret;
 	}
 
-	return drm_connector_attach_encoder(&lt9611uxc->connector, bridge->encoder);
+	ret = drm_connector_attach_encoder(&lt9611uxc->connector, bridge->encoder);
+	if (ret) {
+		DRM_ERROR("Failed to link up connector to encoder: %d\n", ret);
+		return ret;
+	}
+
+	/* Attach primary DSI */
+	lt9611uxc->dsi0 = lt9611uxc_attach_dsi(lt9611uxc, lt9611uxc->dsi0_node);
+	if (IS_ERR(lt9611uxc->dsi0)) {
+		ret = PTR_ERR(lt9611uxc->dsi0);
+		drm_bridge_remove(&lt9611uxc->bridge);
+		return ret;
+	}
+
+	/* Attach secondary DSI, if specified */
+	if (lt9611uxc->dsi1_node) {
+		lt9611uxc->dsi1 = lt9611uxc_attach_dsi(lt9611uxc, lt9611uxc->dsi1_node);
+		if (IS_ERR(lt9611uxc->dsi1)) {
+			ret = PTR_ERR(lt9611uxc->dsi1);
+			drm_bridge_remove(&lt9611uxc->bridge);
+			return ret;
+		}
+	}
+
+	return ret;
 }
 
 static int lt9611uxc_bridge_attach(struct drm_bridge *bridge,
@@ -948,26 +976,7 @@ retry:
 
 	drm_bridge_add(&lt9611uxc->bridge);
 
-	/* Attach primary DSI */
-	lt9611uxc->dsi0 = lt9611uxc_attach_dsi(lt9611uxc, lt9611uxc->dsi0_node);
-	if (IS_ERR(lt9611uxc->dsi0)) {
-		ret = PTR_ERR(lt9611uxc->dsi0);
-		goto err_remove_bridge;
-	}
-
-	/* Attach secondary DSI, if specified */
-	if (lt9611uxc->dsi1_node) {
-		lt9611uxc->dsi1 = lt9611uxc_attach_dsi(lt9611uxc, lt9611uxc->dsi1_node);
-		if (IS_ERR(lt9611uxc->dsi1)) {
-			ret = PTR_ERR(lt9611uxc->dsi1);
-			goto err_remove_bridge;
-		}
-	}
-
 	return lt9611uxc_audio_init(dev, lt9611uxc);
-
-err_remove_bridge:
-	drm_bridge_remove(&lt9611uxc->bridge);
 
 err_disable_regulators:
 	regulator_bulk_disable(ARRAY_SIZE(lt9611uxc->supplies), lt9611uxc->supplies);
