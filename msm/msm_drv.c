@@ -120,10 +120,12 @@ static void msm_drm_display_thread_priority_worker(struct kthread_work *work)
 	 * other real time and normal priority task
 	 */
 	param.sched_priority = 16;
+	#if defined(sched_setscheduler)
 	ret = sched_setscheduler(task, SCHED_FIFO, &param);
 	if (ret)
 		pr_warn("pid:%d name:%s priority update failed: %d\n",
 			current->tgid, task->comm, ret);
+	#endif
 }
 
 /**
@@ -1837,11 +1839,13 @@ static struct drm_driver msm_driver = {
 #endif
 	.dumb_create        = msm_gem_dumb_create,
 	.dumb_map_offset    = msm_gem_dumb_map_offset,
-	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
-	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_prime_import   = msm_gem_prime_import,
 	.gem_prime_import_sg_table = msm_gem_prime_import_sg_table,
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 1, 0))
+	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
+	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_prime_mmap     = msm_gem_prime_mmap,
+#endif
 	.ioctls             = msm_ioctls,
 	.num_ioctls         = ARRAY_SIZE(msm_ioctls),
 	.fops               = &fops,

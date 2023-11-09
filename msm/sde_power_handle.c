@@ -711,7 +711,7 @@ int sde_power_resource_init(struct platform_device *pdev,
 	}
 
 	rc = msm_dss_mmrm_register(&pdev->dev, mp,
-		sde_power_mmrm_callback, (void *)phandle,
+		(void*)sde_power_mmrm_callback, (void *)phandle,
 		&phandle->mmrm_enable);
 	if (rc) {
 		pr_err("mmrm register failed rc=%d\n", rc);

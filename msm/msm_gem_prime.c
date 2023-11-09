@@ -22,16 +22,24 @@
 #include "msm_mmu.h"
 #include "msm_kms.h"
 #include <linux/module.h>
-
 #include <drm/drm_drv.h>
 
+#if __has_include(<linux/qcom-dma-mapping.h>) && \
+    __has_include(<linux/mem-buf.h>) && \
+    __has_include(<soc/qcom/secure_buffer.h>)
 #include <linux/qcom-dma-mapping.h>
-#include <linux/dma-buf.h>
-#include <linux/version.h>
 #include <linux/mem-buf.h>
 #include <soc/qcom/secure_buffer.h>
+#else
+#include "qcom_display_internal.h"
+#endif
+
+#include <linux/dma-buf.h>
+#include <linux/version.h>
 #if (KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE)
+#if __has_include(<linux/qti-smmu-proxy-callbacks.h>)
 #include <linux/qti-smmu-proxy-callbacks.h>
+#endif
 #elif (KERNEL_VERSION(5, 15, 0) > LINUX_VERSION_CODE)
 #include <linux/ion.h>
 #include <linux/msm_ion.h>
@@ -220,7 +228,7 @@ struct drm_gem_object *msm_gem_prime_import(struct drm_device *dev,
 		DRM_ERROR("dma_buf_attach failure, err=%ld\n", PTR_ERR(attach));
 		return ERR_CAST(attach);
 	}
-
+	#if __has_include (<linux/mem-buf.h>)
 	/*
 	 * For cached buffers where CPU access is required, dma_map_attachment
 	 * must be called now to allow user-space to perform cpu sync begin/end
@@ -230,7 +238,7 @@ struct drm_gem_object *msm_gem_prime_import(struct drm_device *dev,
 		attach->dma_map_attrs |= DMA_ATTR_DELAYED_UNMAP;
 
 	attach->dma_map_attrs |= dma_map_attrs;
-
+	#endif
 	/*
 	 * avoid map_attachment for S2-only buffers and TVM buffers as it needs to be mapped
 	 * after the SID switch scm_call and will be handled during msm_gem_get_dma_addr

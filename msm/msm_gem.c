@@ -16,8 +16,11 @@
  * You should have received a copy of the GNU General Public License along with
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
+#if __has_include(<linux/qcom-dma-mapping.h>)
 #include <linux/qcom-dma-mapping.h>
+#else
+#include "qcom_display_internal.h"
+#endif
 #include <linux/spinlock.h>
 #include <linux/shmem_fs.h>
 #include <linux/dma-buf.h>
@@ -451,7 +454,9 @@ static int msm_gem_get_iova_locked(struct drm_gem_object *obj,
 		struct device *dev;
 		struct dma_buf *dmabuf;
 		bool reattach = false;
+		#if __has_include(<linux/qcom-dma-mapping.h>)
 		unsigned long dma_map_attrs;
+		#endif
 
 		dev = msm_gem_get_aspace_device(aspace);
 		if ((dev && obj->import_attach) &&
@@ -469,7 +474,9 @@ static int msm_gem_get_iova_locked(struct drm_gem_object *obj,
 			}
 
 			dmabuf = obj->import_attach->dmabuf;
+			#if __has_include(<linux/qcom-dma-mapping.h>)
 			dma_map_attrs = obj->import_attach->dma_map_attrs;
+			#endif
 
 			DRM_DEBUG("detach nsec-dev:%pK attach sec-dev:%pK\n",
 					obj->import_attach->dev, dev);
@@ -493,7 +500,9 @@ static int msm_gem_get_iova_locked(struct drm_gem_object *obj,
 			 * Re-apply the dma_map_attr in this case to be in sync
 			 * with iommu_map attrs during map_attachment callback.
 			 */
+			#if __has_include(<linux/qcom-dma-mapping.h>)
 			obj->import_attach->dma_map_attrs |= dma_map_attrs;
+			#endif
 			msm_obj->obj_dirty = false;
 			reattach = true;
 		}
@@ -1159,7 +1168,9 @@ int msm_gem_delayed_import(struct drm_gem_object *obj)
 	}
 
 	attach = obj->import_attach;
+	#if __has_include(<linux/qcom-dma-mapping.h>)
 	attach->dma_map_attrs |= DMA_ATTR_DELAYED_UNMAP;
+	#endif
 
 	/*
 	 * dma_buf_map_attachment will call dma_map_sg for ion buffer

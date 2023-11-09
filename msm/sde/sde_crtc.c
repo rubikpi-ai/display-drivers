@@ -26,7 +26,12 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_flip_work.h>
+#if __has_include(<soc/qcom/of_common.h>)
 #include <soc/qcom/of_common.h>
+#else
+#include "qcom_display_internal.h"
+#endif
+
 #include <linux/version.h>
 #include <linux/soc/qcom/qcom_sync_file.h>
 #include <linux/file.h>

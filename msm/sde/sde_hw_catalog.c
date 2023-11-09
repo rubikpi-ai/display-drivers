@@ -10,7 +10,11 @@
 #include <linux/platform_device.h>
 #include <linux/soc/qcom/llcc-qcom.h>
 #include <linux/pm_qos.h>
+#if __has_include(<soc/qcom/of_common.h>)
 #include <soc/qcom/of_common.h>
+#else
+#include "qcom_display_internal.h"
+#endif
 
 #include "sde_hw_mdss.h"
 #include "sde_hw_catalog.h"

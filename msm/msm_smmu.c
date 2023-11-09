@@ -20,18 +20,24 @@
 #include <linux/module.h>
 #include <linux/of_platform.h>
 #include <linux/pm_runtime.h>
+
+#if __has_include(<linux/qcom-dma-mapping.h>) && \
+    __has_include(<linux/msm_dma_iommu_mapping.h>) && \
+    __has_include(<linux/qcom-iommu-util.h>) && \
+    __has_include(<soc/qcom/secure_buffer.h>)
 #include <linux/qcom-dma-mapping.h>
 #include <linux/msm_dma_iommu_mapping.h>
-#include <linux/dma-mapping.h>
 #include <linux/qcom-iommu-util.h>
-
 #include <soc/qcom/secure_buffer.h>
+#else
+#include "qcom_display_internal.h"
+#endif
 
+#include <linux/dma-mapping.h>
 #include "msm_drv.h"
 #include "msm_gem.h"
 #include "msm_mmu.h"
 #include "sde_dbg.h"
-
 struct msm_smmu_client {
 	struct device *dev;
 	const char *compat;
@@ -55,6 +61,18 @@ struct msm_smmu_domain {
 
 #define to_msm_smmu(x) container_of(x, struct msm_smmu, base)
 #define msm_smmu_to_client(smmu) (smmu->client)
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 5, 0))
+	#define IOMMU_MAP(domain, iova, dest_address, size, prot) \
+		iommu_map(domain, iova, dest_address, size, prot, 0)
+	#define IOMMU_MAP_SG(domain, iova, sgl, orig_nents, prot) \
+		iommu_map_sg(domain, iova, sgl, orig_nents, prot, 0)
+#else
+	#define IOMMU_MAP(domain, iova, dest_address, size, prot) \
+		iommu_map(domain, iova, dest_address, size, prot)
+	#define IOMMU_MAP_SG(domain, iova, sgl, orig_nents, prot) \
+		iommu_map_sg(domain, iova, sgl, orig_nents, prot)
+#endif
 
 /* Serialization lock for smmu_list */
 static DEFINE_MUTEX(smmu_list_lock);
@@ -192,7 +210,7 @@ static int msm_smmu_one_to_one_map(struct msm_mmu *mmu, uint32_t iova,
 	if (!client || !client->domain)
 		return -ENODEV;
 
-	ret = iommu_map(client->domain, iova, dest_address,
+	ret = IOMMU_MAP(client->domain, iova, dest_address,
 			size, prot);
 	if (ret)
 		pr_err("smmu map failed\n");
@@ -208,8 +226,7 @@ static int msm_smmu_map(struct msm_mmu *mmu, uint64_t iova,
 	size_t ret = 0;
 
 	if (sgt && sgt->sgl) {
-		ret = iommu_map_sg(client->domain, iova, sgt->sgl,
-				sgt->orig_nents, prot);
+		ret = IOMMU_MAP_SG(client->domain, iova, sgt->sgl, sgt->orig_nents, prot);
 		WARN_ON((int)ret < 0);
 		DRM_DEBUG("%pad/0x%x/0x%x/\n", &sgt->sgl->dma_address,
 				sgt->sgl->dma_length, prot);

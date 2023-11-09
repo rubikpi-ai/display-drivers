@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
  *
@@ -19,7 +20,9 @@
 #define __MSM_MMU_H__
 
 #include <linux/iommu.h>
+#if __has_include(<linux/qcom-iommu-util.h>)
 #include <linux/qcom-iommu-util.h>
+#endif
 #include <linux/dma-mapping.h>
 #include <linux/dma-map-ops.h>
 

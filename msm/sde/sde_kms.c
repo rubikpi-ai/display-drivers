@@ -55,11 +55,18 @@
 #include "sde_connector.h"
 #include "sde_vm.h"
 #include "sde_fence.h"
-
+#if __has_include(<linux/qcom_scm.h>) && \
+    __has_include(<linux/qcom-iommu-util.h>) && \
+    __has_include("soc/qcom/secure_buffer.h") && \
+    __has_include(<linux/qtee_shmbridge.h>)
 #include <linux/qcom_scm.h>
 #include <linux/qcom-iommu-util.h>
 #include "soc/qcom/secure_buffer.h"
 #include <linux/qtee_shmbridge.h>
+#else
+#include "qcom_display_internal.h"
+#endif
+
 #ifdef CONFIG_DRM_SDE_VM
 #include <linux/gunyah/gh_irq_lend.h>
 #endif
@@ -773,6 +780,7 @@ static int _sde_kms_release_shared_buffer(unsigned long mem_addr,
 	pfn_start = mem_addr >> PAGE_SHIFT;
 	pfn_end = (mem_addr + splash_buffer_size) >> PAGE_SHIFT;
 
+#if defined(memblock_free)
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 19, 0))
 	memblock_free((unsigned int*)mem_addr, splash_buffer_size);
 #else
@@ -781,6 +789,7 @@ static int _sde_kms_release_shared_buffer(unsigned long mem_addr,
 		SDE_ERROR("continuous splash memory free failed:%d\n", ret);
 		return ret;
 	}
+#endif
 #endif
 
 	for (pfn_idx = pfn_start; pfn_idx < pfn_end; pfn_idx++)
@@ -1803,6 +1812,7 @@ static int _sde_kms_get_displays(struct sde_kms *sde_kms)
 	}
 
 	/* dp */
+#if IS_ENABLED(CONFIG_DRM_MSM_DP)
 	sde_kms->dp_displays = NULL;
 	sde_kms->dp_display_count = dp_display_get_num_of_displays();
 	if (sde_kms->dp_display_count) {
@@ -1818,6 +1828,7 @@ static int _sde_kms_get_displays(struct sde_kms *sde_kms)
 
 		sde_kms->dp_stream_count = dp_display_get_num_of_streams();
 	}
+#endif
 	return 0;
 
 exit_deinit_dp:
@@ -1925,6 +1936,7 @@ static int _sde_kms_setup_displays(struct drm_device *dev,
 		.set_allowed_mode_switch = NULL,
 		.update_transfer_time = NULL,
 	};
+#if IS_ENABLED(CONFIG_DRM_MSM_DP)
 	static const struct sde_connector_ops dp_ops = {
 		.post_init  = dp_connector_post_init,
 		.detect     = dp_connector_detect,
@@ -1948,6 +1960,7 @@ static int _sde_kms_setup_displays(struct drm_device *dev,
 		.set_dyn_bit_clk = NULL,
 		.update_transfer_time = NULL,
 	};
+#endif
 	struct msm_display_info info;
 	struct drm_encoder *encoder;
 	void *display, *connector;
@@ -2086,6 +2099,7 @@ static int _sde_kms_setup_displays(struct drm_device *dev,
 			SDE_DP_DSC_RESERVATION_SWITCH)
 		max_dp_dsc_count = sde_kms->catalog->dsc_count;
 	/* dp */
+#if IS_ENABLED(CONFIG_DRM_MSM_DP)
 	for (i = 0; i < sde_kms->dp_display_count &&
 			priv->num_encoders < max_encoders; ++i) {
 		int idx;
@@ -2152,7 +2166,7 @@ static int _sde_kms_setup_displays(struct drm_device *dev,
 			priv->encoders[priv->num_encoders++] = encoder;
 		}
 	}
-
+#endif
 	return 0;
 }
 

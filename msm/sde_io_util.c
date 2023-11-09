@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (c) 2012-2015, 2017-2021 The Linux Foundation. All rights reserved.
  */
 
@@ -7,8 +8,15 @@
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/regulator/consumer.h>
+
+#if __has_include(<linux/soc/qcom/spmi-pmic-arb.h>) && \
+    __has_include(<linux/pinctrl/qcom-pinctrl.h>)
 #include <linux/soc/qcom/spmi-pmic-arb.h>
 #include <linux/pinctrl/qcom-pinctrl.h>
+#else
+#include "qcom_display_internal.h"
+#endif
+
 #include <linux/delay.h>
 #include <linux/sde_io_util.h>
 #include <linux/sde_vm_event.h>
@@ -570,7 +578,7 @@ error:
 EXPORT_SYMBOL(msm_dss_get_clk);
 
 int msm_dss_mmrm_register(struct device *dev, struct dss_module_power *mp,
-	int (*cb_fnc)(struct mmrm_client_notifier_data *data), void *phandle,
+	int (*cb_fnc)(void *data), void *phandle,
 	bool *mmrm_enable)
 {
 	int i, rc = 0;

@@ -125,8 +125,9 @@ int sde_wb_connector_get_modes(struct drm_connector *connector, void *display,
 
 	mutex_lock(&wb_dev->wb_lock);
 	if (wb_dev->count_modes && wb_dev->modes) {
+#if defined(drm_mode_convert_umode)
 		struct drm_display_mode *mode;
-		int i, ret;
+		int i, ret = 0;
 
 		for (i = 0; i < wb_dev->count_modes; i++) {
 			mode = drm_mode_create(connector->dev);
@@ -135,7 +136,7 @@ int sde_wb_connector_get_modes(struct drm_connector *connector, void *display,
 				break;
 			}
 			ret = drm_mode_convert_umode(wb_dev->drm_dev, mode,
-					&wb_dev->modes[i]);
+					&wb_dev->modes[i])
 			if (ret) {
 				SDE_ERROR("failed to convert mode %d\n", ret);
 				break;
@@ -144,19 +145,27 @@ int sde_wb_connector_get_modes(struct drm_connector *connector, void *display,
 			drm_mode_probed_add(connector, mode);
 			num_modes++;
 		}
+#else
+		goto custom_modes;
+#endif
 	} else {
-		u32 max_width = SDE_WB_MODE_MAX_WIDTH;
-
-		if (wb_dev->wb_cfg && wb_dev->wb_cfg->sblk)
-			max_width = max(wb_dev->wb_cfg->sblk->maxlinewidth,
-				wb_dev->wb_cfg->sblk->maxlinewidth_linear);
-
-		num_modes = drm_add_modes_noedid(connector, max_width,
-				SDE_WB_MODE_MAX_HEIGHT);
-
-		num_modes += sde_wb_connector_add_custom_modes(connector, max_width,
-				SDE_WB_MODE_MAX_HEIGHT);
+		goto custom_modes;
 	}
+
+	mutex_unlock(&wb_dev->wb_lock);
+	return num_modes;
+custom_modes:
+	u32 max_width = SDE_WB_MODE_MAX_WIDTH;
+
+	if (wb_dev->wb_cfg && wb_dev->wb_cfg->sblk)
+		max_width = max(wb_dev->wb_cfg->sblk->maxlinewidth,
+			wb_dev->wb_cfg->sblk->maxlinewidth_linear);
+
+	num_modes = drm_add_modes_noedid(connector, max_width,
+			SDE_WB_MODE_MAX_HEIGHT);
+
+	num_modes += sde_wb_connector_add_custom_modes(connector, max_width,
+			SDE_WB_MODE_MAX_HEIGHT);
 	mutex_unlock(&wb_dev->wb_lock);
 	return num_modes;
 }
@@ -223,6 +232,7 @@ int sde_wb_connector_set_modes(struct sde_wb_device *wb_dev,
 	SDE_DEBUG("\n");
 
 	if (connected) {
+#if defined(drm_mode_convert_umode)
 		SDE_DEBUG("connect\n");
 
 		if (!count_modes || !modes) {
@@ -289,6 +299,10 @@ int sde_wb_connector_set_modes(struct sde_wb_device *wb_dev,
 		wb_dev->count_modes = count_modes;
 		wb_dev->modes = modeinfo;
 		wb_dev->detect_status = connector_status_connected;
+#else
+		SDE_ERROR("failed to set mode\n");
+		goto error;
+#endif
 	} else {
 		SDE_DEBUG("disconnect\n");
 

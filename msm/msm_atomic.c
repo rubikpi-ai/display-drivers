@@ -31,6 +31,26 @@
 
 #define MULTIPLE_CONN_DETECTED(x) (x > 1)
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0))
+	#define DRM_ATOMIC_BRIDGE_CHAIN_DISABLE(bridge, old_state) \
+		drm_atomic_bridge_chain_disable(bridge, old_state);
+	#define DRM_ATOMIC_BRIDGE_CHAIN_POST_DISABLE(bridge, old_state) \
+		drm_atomic_bridge_chain_post_disable(bridge, old_state);
+	#define DRM_ATOMIC_BRIDGE_CHAIN_PRE_ENABLE(bridge, old_state) \
+		drm_atomic_bridge_chain_pre_enable(bridge, old_state);
+	#define DRM_ATOMIC_BRIDGE_CHAIN_ENABLE(bridge, old_state) \
+		drm_atomic_bridge_chain_enable(bridge, old_state);
+#else
+	#define DRM_ATOMIC_BRIDGE_CHAIN_DISABLE(bridge, old_state) \
+		drm_bridge_chain_disable(bridge);
+	#define DRM_ATOMIC_BRIDGE_CHAIN_POST_DISABLE(bridge, old_state) \
+		drm_bridge_chain__post_disable(bridge);
+	#define DRM_ATOMIC_BRIDGE_CHAIN_PRE_ENABLE(bridge, old_state) \
+		drm_bridge_chain_pre_enable(bridge);
+	#define DRM_ATOMIC_BRIDGE_CHAIN_ENABLE(bridge, old_state) \
+		drm_bridge_chain_enable(bridge);
+#endif
+
 struct msm_commit {
 	struct drm_device *dev;
 	struct drm_atomic_state *state;
@@ -237,7 +257,7 @@ msm_disable_outputs(struct drm_device *dev, struct drm_atomic_state *old_state)
 		 * it away), so we won't call disable hooks twice.
 		 */
 		bridge = drm_bridge_chain_get_first_bridge(encoder);
-		drm_bridge_chain_disable(bridge);
+		DRM_ATOMIC_BRIDGE_CHAIN_DISABLE(bridge, old_state);
 
 		/* Right function depends upon target state. */
 		if (connector->state->crtc && funcs->prepare)
@@ -247,7 +267,7 @@ msm_disable_outputs(struct drm_device *dev, struct drm_atomic_state *old_state)
 		else
 			funcs->dpms(encoder, DRM_MODE_DPMS_OFF);
 
-		drm_bridge_chain_post_disable(bridge);
+		DRM_ATOMIC_BRIDGE_CHAIN_POST_DISABLE(bridge, old_state);
 	}
 
 	for_each_old_crtc_in_state(old_state, crtc, old_crtc_state, i) {
@@ -483,7 +503,7 @@ static void msm_atomic_helper_commit_modeset_enables(struct drm_device *dev,
 		 * it away), so we won't call enable hooks twice.
 		 */
 		bridge = drm_bridge_chain_get_first_bridge(encoder);
-		drm_bridge_chain_pre_enable(bridge);
+		DRM_ATOMIC_BRIDGE_CHAIN_PRE_ENABLE(bridge, old_state);
 		++bridge_enable_count;
 
 		if (funcs->enable)
@@ -528,7 +548,7 @@ static void msm_atomic_helper_commit_modeset_enables(struct drm_device *dev,
 				 encoder->base.id, encoder->name);
 
 		bridge = drm_bridge_chain_get_first_bridge(encoder);
-		drm_bridge_chain_enable(bridge);
+		DRM_ATOMIC_BRIDGE_CHAIN_ENABLE(bridge, old_state);
 	}
 	SDE_ATRACE_END("msm_enable");
 }
