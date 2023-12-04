@@ -390,11 +390,9 @@ static int lt9611uxc_bridge_attach(struct drm_bridge *bridge,
 	struct lt9611uxc *lt9611uxc = bridge_to_lt9611uxc(bridge);
 	int ret;
 
-	if (!(flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR)) {
-		ret = lt9611uxc_connector_init(bridge, lt9611uxc);
-		if (ret < 0)
-			return ret;
-	}
+	ret = lt9611uxc_connector_init(bridge, lt9611uxc);
+	if (ret < 0)
+		return ret;
 
 	return 0;
 }
@@ -1006,12 +1004,12 @@ static void lt9611uxc_remove(struct i2c_client *client)
 }
 
 static struct i2c_device_id lt9611uxc_id[] = {
-	{ "lontium,lt9611uxc", 0 },
+	{ "lt,lt9611uxc", 0 },
 	{ /* sentinel */ }
 };
 
 static const struct of_device_id lt9611uxc_match_table[] = {
-	{ .compatible = "lontium,lt9611uxc" },
+	{ .compatible = "lt,lt9611uxc" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, lt9611uxc_match_table);
