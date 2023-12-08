@@ -23,16 +23,9 @@
 #include "msm_kms.h"
 #include <linux/module.h>
 #include <drm/drm_drv.h>
-
-#if __has_include(<linux/qcom-dma-mapping.h>) && \
-    __has_include(<linux/mem-buf.h>) && \
-    __has_include(<soc/qcom/secure_buffer.h>)
+#include <soc/qcom/secure_buffer.h>
 #include <linux/qcom-dma-mapping.h>
 #include <linux/mem-buf.h>
-#include <soc/qcom/secure_buffer.h>
-#else
-#include "qcom_display_internal.h"
-#endif
 
 #include <linux/dma-buf.h>
 #include <linux/version.h>

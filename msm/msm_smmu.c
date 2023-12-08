@@ -20,15 +20,13 @@
 #include <linux/module.h>
 #include <linux/of_platform.h>
 #include <linux/pm_runtime.h>
-
-#if __has_include(<linux/qcom-dma-mapping.h>) && \
-    __has_include(<linux/msm_dma_iommu_mapping.h>) && \
-    __has_include(<linux/qcom-iommu-util.h>) && \
-    __has_include(<soc/qcom/secure_buffer.h>)
+#include <soc/qcom/secure_buffer.h>
 #include <linux/qcom-dma-mapping.h>
+
+#if __has_include(<linux/msm_dma_iommu_mapping.h>) && \
+    __has_include(<linux/qcom-iommu-util.h>)
 #include <linux/msm_dma_iommu_mapping.h>
 #include <linux/qcom-iommu-util.h>
-#include <soc/qcom/secure_buffer.h>
 #else
 #include "qcom_display_internal.h"
 #endif

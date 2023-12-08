@@ -55,13 +55,12 @@
 #include "sde_connector.h"
 #include "sde_vm.h"
 #include "sde_fence.h"
+#include "soc/qcom/secure_buffer.h"
 #if __has_include(<linux/qcom_scm.h>) && \
     __has_include(<linux/qcom-iommu-util.h>) && \
-    __has_include("soc/qcom/secure_buffer.h") && \
     __has_include(<linux/qtee_shmbridge.h>)
 #include <linux/qcom_scm.h>
 #include <linux/qcom-iommu-util.h>
-#include "soc/qcom/secure_buffer.h"
 #include <linux/qtee_shmbridge.h>
 #else
 #include "qcom_display_internal.h"
