@@ -923,27 +923,24 @@ static int lt9611uxc_probe(struct i2c_client *client)
 	ret = lt9611uxc_read_device_rev(lt9611uxc);
 	if (ret) {
 		dev_err(dev, "failed to read chip rev\n");
-		goto err_disable_regulators;
 	}
 
 retry:
 	ret = lt9611uxc_read_version(lt9611uxc);
 	if (ret < 0) {
 		dev_err(dev, "failed to read FW version\n");
-		goto err_disable_regulators;
 	} else if (ret == 0) {
 		if (!fw_updated) {
 			fw_updated = true;
 			dev_err(dev, "FW version 0, enforcing firmware update\n");
 			ret = lt9611uxc_firmware_update(lt9611uxc);
 			if (ret < 0)
-				goto err_disable_regulators;
+				dev_err(dev, "FW update fail\n");
 			else
 				goto retry;
 		} else {
 			dev_err(dev, "FW version 0, update failed\n");
 			ret = -EOPNOTSUPP;
-			goto err_disable_regulators;
 		}
 	} else if (ret < 0x40) {
 		dev_info(dev, "FW version 0x%x, HPD not supported\n", ret);
@@ -960,7 +957,6 @@ retry:
 					IRQF_ONESHOT, "lt9611uxc", lt9611uxc);
 	if (ret) {
 		dev_err(dev, "failed to request irq\n");
-		goto err_disable_regulators;
 	}
 
 	i2c_set_clientdata(client, lt9611uxc);
@@ -975,9 +971,6 @@ retry:
 	drm_bridge_add(&lt9611uxc->bridge);
 
 	return lt9611uxc_audio_init(dev, lt9611uxc);
-
-err_disable_regulators:
-	regulator_bulk_disable(ARRAY_SIZE(lt9611uxc->supplies), lt9611uxc->supplies);
 
 err_of_put:
 	of_node_put(lt9611uxc->dsi1_node);
