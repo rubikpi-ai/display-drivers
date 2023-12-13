@@ -6027,7 +6027,7 @@ int dsi_display_dev_probe(struct platform_device *pdev)
 	struct dsi_display *display = NULL;
 	struct device_node *node = NULL, *panel_node = NULL, *mdp_node = NULL;
 	int rc = 0, index = DSI_PRIMARY;
-	bool firm_req = false;
+	bool firm_req = false, ext_disp_en = false;
 	struct dsi_display_boot_param *boot_disp;
 
 	if (!pdev || !pdev->dev.of_node) {
@@ -6105,8 +6105,10 @@ int dsi_display_dev_probe(struct platform_device *pdev)
 		goto end;
 	}
 
+	ext_disp_en = of_property_read_bool(display->panel_node,
+				"qcom,mdss-dsi-ext-bridge-mode");
 	/* initialize display in firmware callback */
-	if (!(boot_displays[DSI_PRIMARY].boot_disp_en ||
+	if (!ext_disp_en && !(boot_displays[DSI_PRIMARY].boot_disp_en ||
 			boot_displays[DSI_SECONDARY].boot_disp_en) &&
 			IS_ENABLED(CONFIG_DSI_PARSER)) {
 		if (!strcmp(display->display_type, "primary"))
