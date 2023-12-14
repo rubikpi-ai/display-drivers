@@ -220,6 +220,12 @@ static int lt9611uxc_regulator_init(struct lt9611uxc *lt9611uxc)
 	if (ret < 0)
 		return ret;
 
+	ret = regulator_set_voltage(lt9611uxc->supplies[1].consumer, 3300000, 3500000);
+	if (ret) {
+		pr_err("%s:regulator set voltage failed %d", __func__, ret);
+		return ret;
+	}
+
 	return regulator_set_load(lt9611uxc->supplies[0].consumer, 200000);
 }
 
