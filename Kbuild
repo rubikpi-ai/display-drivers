@@ -10,3 +10,4 @@ LINUXINCLUDE    += \
 USERINCLUDE     += -I$(DISPLAY_ROOT)/include/uapi/display
 
 obj-$(CONFIG_DRM_MSM) += msm/
+obj-$(CONFIG_DRM_MSM) += bridge-drivers/
