@@ -5982,15 +5982,25 @@ static int dsi_display_init(struct dsi_display *display)
 		if (rc) {
 			DSI_ERR("[%s] failed to enable vregs, rc=%d\n",
 					display->panel->name, rc);
-			return rc;
+			goto vreg_fail;
 		}
 	}
 
 	rc = component_add(&pdev->dev, &dsi_display_comp_ops);
-	if (rc)
+	if (rc) {
 		DSI_ERR("component add failed, rc=%d\n", rc);
+		goto comp_add_fail;
+	}
 
 	DSI_DEBUG("component add success: %s\n", display->name);
+	return rc;
+
+comp_add_fail:
+	if (display->panel)
+		dsi_pwr_enable_regulator(&display->panel->power_info, false);
+vreg_fail:
+	_dsi_display_dev_deinit(display);
+
 end:
 	return rc;
 }
@@ -6027,7 +6037,7 @@ int dsi_display_dev_probe(struct platform_device *pdev)
 	struct dsi_display *display = NULL;
 	struct device_node *node = NULL, *panel_node = NULL, *mdp_node = NULL;
 	int rc = 0, index = DSI_PRIMARY;
-	bool firm_req = false;
+	bool firm_req = false, ext_disp_en = false;
 	struct dsi_display_boot_param *boot_disp;
 
 	if (!pdev || !pdev->dev.of_node) {
@@ -6105,8 +6115,10 @@ int dsi_display_dev_probe(struct platform_device *pdev)
 		goto end;
 	}
 
+	ext_disp_en = of_property_read_bool(display->panel_node,
+				"qcom,mdss-dsi-ext-bridge-mode");
 	/* initialize display in firmware callback */
-	if (!(boot_displays[DSI_PRIMARY].boot_disp_en ||
+	if (!ext_disp_en && !(boot_displays[DSI_PRIMARY].boot_disp_en ||
 			boot_displays[DSI_SECONDARY].boot_disp_en) &&
 			IS_ENABLED(CONFIG_DSI_PARSER)) {
 		if (!strcmp(display->display_type, "primary"))
