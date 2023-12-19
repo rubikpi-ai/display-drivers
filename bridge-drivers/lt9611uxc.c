@@ -5,7 +5,7 @@
  */
 
 /*
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/firmware.h>
@@ -28,6 +28,7 @@
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
+#include <drm/drm_file.h>
 
 #define EDID_BLOCK_SIZE	128
 #define EDID_NUM_BLOCKS	2
@@ -167,14 +168,39 @@ static irqreturn_t lt9611uxc_irq_thread_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static void lt9611uxc_helper_hotplug_event(struct lt9611uxc *lt9611uxc)
+{
+	struct drm_device *dev = NULL;
+	char name[32], status[32];
+	char *event_string = "HOTPLUG=1";
+	char *envp[5];
+
+	dev = lt9611uxc->connector.dev;
+
+	scnprintf(name, 32, "name=%s",
+		lt9611uxc->connector.name);
+	scnprintf(status, 32, "status=%s",
+		drm_get_connector_status_name(lt9611uxc->connector.status));
+	envp[0] = name;
+	envp[1] = status;
+	envp[2] = event_string;
+	envp[3] = NULL;
+	envp[4] = NULL;
+
+	dev_info(lt9611uxc->dev, "[%s]:[%s]\n", name, status);
+	kobject_uevent_env(&dev->primary->kdev->kobj, KOBJ_CHANGE,
+		envp);
+}
+
 static void lt9611uxc_hpd_work(struct work_struct *work)
 {
 	struct lt9611uxc *lt9611uxc = container_of(work, struct lt9611uxc, work);
 	bool connected;
 
 	if (lt9611uxc->connector.dev) {
-		if (lt9611uxc->connector.dev->mode_config.funcs)
-			drm_kms_helper_hotplug_event(lt9611uxc->connector.dev);
+		lt9611uxc->connector.status = (lt9611uxc->hdmi_connected) ?
+				connector_status_connected: connector_status_disconnected;
+		lt9611uxc_helper_hotplug_event(lt9611uxc);
 	} else {
 
 		mutex_lock(&lt9611uxc->ocm_lock);
