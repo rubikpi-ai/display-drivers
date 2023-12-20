@@ -41,6 +41,14 @@
 #define MAX_NUMBER_ADB 5
 #define MAX_AUDIO_DATA_BLOCK_SIZE 30
 
+struct lt9611uxc_mode {
+	u16 hdisplay;
+	u16 htotal;
+	u16 vdisplay;
+	u16 vtotal;
+	u8 vrefresh;
+};
+
 struct lt9611uxc {
 	struct device *dev;
 	struct drm_bridge bridge;
@@ -90,6 +98,11 @@ struct lt9611uxc {
 	bool cec_status;
 	unsigned int cec_tx_status;
 	struct cec_notifier *cec_notifier;
+
+	/* Dynamic Mode Switch support */
+	struct drm_display_mode curr_mode;
+	bool fix_mode;
+	struct lt9611uxc_mode debug_mode;
 };
 
 #define LT9611_PAGE_CONTROL	0xff
@@ -113,14 +126,6 @@ static const struct regmap_config lt9611uxc_regmap_config = {
 	.max_register = 0xffff,
 	.ranges = lt9611uxc_ranges,
 	.num_ranges = ARRAY_SIZE(lt9611uxc_ranges),
-};
-
-struct lt9611uxc_mode {
-	u16 hdisplay;
-	u16 htotal;
-	u16 vdisplay;
-	u16 vtotal;
-	u8 vrefresh;
 };
 
 /*
@@ -657,6 +662,76 @@ static struct mipi_dsi_device *lt9611uxc_attach_dsi(struct lt9611uxc *lt9611uxc,
 	return dsi;
 }
 
+#define MODE_SIZE(m) ((m)->hdisplay * (m)->vdisplay)
+#define MODE_REFRESH_DIFF(c, t) (abs((c) - (t)))
+
+static void lt9611uxc_choose_best_mode(struct drm_connector *connector)
+{
+	struct drm_display_mode *t, *cur_mode, *preferred_mode;
+	int cur_vrefresh, preferred_vrefresh;
+	int target_refresh = 60;
+
+	if (list_empty(&connector->probed_modes))
+		return;
+
+	preferred_mode = list_first_entry(&connector->probed_modes,
+			struct drm_display_mode, head);
+	list_for_each_entry_safe(cur_mode, t, &connector->probed_modes, head) {
+		cur_mode->type &= ~DRM_MODE_TYPE_PREFERRED;
+		if (cur_mode == preferred_mode)
+			continue;
+
+		/* Largest mode is preferred */
+		if (MODE_SIZE(cur_mode) > MODE_SIZE(preferred_mode))
+			preferred_mode = cur_mode;
+
+		cur_vrefresh = drm_mode_vrefresh(cur_mode);
+		preferred_vrefresh = drm_mode_vrefresh(preferred_mode);
+
+		/* At a given size, try to get closest to target refresh */
+		if ((MODE_SIZE(cur_mode) == MODE_SIZE(preferred_mode)) &&
+			MODE_REFRESH_DIFF(cur_vrefresh, target_refresh) <
+			MODE_REFRESH_DIFF(preferred_vrefresh, target_refresh) &&
+			cur_vrefresh <= target_refresh) {
+			preferred_mode = cur_mode;
+		}
+	}
+
+	preferred_mode->type |= DRM_MODE_TYPE_PREFERRED;
+}
+
+static void lt9611uxc_set_preferred_mode(struct drm_connector *connector)
+{
+	struct lt9611uxc *lt9611uxc = connector_to_lt9611uxc(connector);
+	struct drm_display_mode *mode, *last_mode;
+	const char *string;
+
+	if (lt9611uxc->fix_mode) {
+		list_for_each_entry(mode, &connector->probed_modes, head) {
+			mode->type &= ~DRM_MODE_TYPE_PREFERRED;
+			if (lt9611uxc->debug_mode.vdisplay == mode->vdisplay &&
+				lt9611uxc->debug_mode.hdisplay == mode->hdisplay &&
+				lt9611uxc->debug_mode.vrefresh == drm_mode_vrefresh(mode)) {
+				mode->type |= DRM_MODE_TYPE_PREFERRED;
+			}
+		}
+	} else {
+		if (!of_property_read_string(lt9611uxc->dev->of_node,
+			"lt,preferred-mode", &string)) {
+			list_for_each_entry(mode,
+				&connector->probed_modes, head) {
+					mode->type &= ~DRM_MODE_TYPE_PREFERRED;
+				if (!strcmp(mode->name, string))
+					mode->type |=
+						DRM_MODE_TYPE_PREFERRED;
+			}
+		} else if (lt9611uxc->edid)
+			lt9611uxc_choose_best_mode(connector);
+		else
+			pr_err("EDID is NULL \n");
+	}
+}
+
 static int lt9611uxc_connector_get_modes(struct drm_connector *connector)
 {
 	struct lt9611uxc *lt9611uxc = connector_to_lt9611uxc(connector);
@@ -666,6 +741,7 @@ static int lt9611uxc_connector_get_modes(struct drm_connector *connector)
 	lt9611uxc->edid = lt9611uxc->bridge.funcs->get_edid(&lt9611uxc->bridge, connector);
 	drm_connector_update_edid_property(connector, lt9611uxc->edid);
 	count = drm_add_edid_modes(connector, lt9611uxc->edid);
+	lt9611uxc_set_preferred_mode(connector);
 
 	/* TODO: add checks for num_of_edid_ext_blk == 0 case */
 	if (lt9611uxc->cec_support)
@@ -884,6 +960,10 @@ static void lt9611uxc_bridge_mode_set(struct drm_bridge *bridge,
 	lt9611uxc_lock(lt9611uxc);
 	lt9611uxc_video_setup(lt9611uxc, mode);
 	lt9611uxc_unlock(lt9611uxc);
+
+	dev_info(lt9611uxc->dev, "hdisplay=%d, vdisplay=%d, clock=%d \n",
+		mode->hdisplay, mode->vdisplay, mode->clock);
+	drm_mode_copy(&lt9611uxc->curr_mode, mode);
 }
 
 static enum drm_connector_status lt9611uxc_bridge_detect(struct drm_bridge *bridge)
@@ -1432,10 +1512,52 @@ static ssize_t lt9611uxc_firmware_show(struct device *dev, struct device_attribu
 	return sysfs_emit(buf, "%02x\n", lt9611uxc->fw_version);
 }
 
+static ssize_t edid_mode_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct lt9611uxc *lt9611uxc = dev_get_drvdata(dev);
+
+	return scnprintf(buf, PAGE_SIZE, "%dx%dx%d\n",
+			lt9611uxc->curr_mode.hdisplay, lt9611uxc->curr_mode.vdisplay,
+			drm_mode_vrefresh(&lt9611uxc->curr_mode));
+};
+
+static ssize_t edid_mode_store(struct device *dev,
+		struct device_attribute *attr, const char *buf,
+		size_t count)
+{
+	int hdisplay = 0, vdisplay = 0, vrefresh = 0;
+	struct lt9611uxc *lt9611uxc = dev_get_drvdata(dev);
+
+	if (!lt9611uxc)
+		return -EINVAL;
+
+	if (sscanf(buf, "%d %d %d", &hdisplay, &vdisplay, &vrefresh) != 3)
+		goto err;
+
+	if (!hdisplay || !vdisplay || !vrefresh)
+		goto err;
+
+	lt9611uxc->fix_mode = true;
+	lt9611uxc->debug_mode.hdisplay = hdisplay;
+	lt9611uxc->debug_mode.vdisplay = vdisplay;
+	lt9611uxc->debug_mode.vrefresh = vrefresh;
+
+	dev_info(lt9611uxc->dev, "fixed mode hdisplay=%d vdisplay=%d, vrefresh=%d\n",
+			hdisplay, vdisplay, vrefresh);
+
+	return count;
+err:
+	lt9611uxc->fix_mode = false;
+	return -EINVAL;
+}
+
 static DEVICE_ATTR_RW(lt9611uxc_firmware);
+static DEVICE_ATTR_RW(edid_mode);
 
 static struct attribute *lt9611uxc_attrs[] = {
 	&dev_attr_lt9611uxc_firmware.attr,
+	&dev_attr_edid_mode.attr,
 	NULL,
 };
 
