@@ -20,6 +20,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
+#include <linux/of_platform.h>
 
 #include <sound/hdmi-codec.h>
 
@@ -30,13 +31,19 @@
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_file.h>
 
+#include <linux/soc/qcom/msm_ext_display.h>
+
 #define EDID_BLOCK_SIZE	128
 #define EDID_NUM_BLOCKS	2
+
+#define MAX_NUMBER_ADB 5
+#define MAX_AUDIO_DATA_BLOCK_SIZE 30
 
 struct lt9611uxc {
 	struct device *dev;
 	struct drm_bridge bridge;
 	struct drm_connector connector;
+	struct edid *edid;
 
 	struct regmap *regmap;
 	/* Protects all accesses to registers by stopping the on-chip MCU */
@@ -63,6 +70,13 @@ struct lt9611uxc {
 	/* can be accessed from different threads, so protect this with ocm_lock */
 	bool hdmi_connected;
 	uint8_t fw_version;
+
+	/* external display platform device */
+	struct platform_device *ext_pdev;
+	struct msm_ext_disp_init_data ext_audio_data;
+	struct msm_ext_disp_audio_edid_blk audio_edid_blk;
+	u8 raw_sad[MAX_NUMBER_ADB * MAX_AUDIO_DATA_BLOCK_SIZE];
+	bool audio_support;
 };
 
 #define LT9611_PAGE_CONTROL	0xff
@@ -140,6 +154,263 @@ static void lt9611uxc_unlock(struct lt9611uxc *lt9611uxc)
 	mutex_unlock(&lt9611uxc->ocm_lock);
 }
 
+static int lt9611uxc_setup_audio_infoframes(struct lt9611uxc *lt9611uxc,
+		struct msm_ext_disp_audio_setup_params *params)
+{
+	struct hdmi_audio_infoframe frame;
+	u8 buffer[14];
+	ssize_t err;
+	u8 i = 0;
+
+	err = hdmi_audio_infoframe_init(&frame);
+	if (err < 0) {
+		dev_err(lt9611uxc->dev, "Failed to setup audio infoframe: %zd\n", err);
+		return err;
+	}
+
+	/* frame.coding_type */
+	frame.channels = params->num_of_channels;
+	frame.sample_frequency = params->sample_rate_hz;
+	/* frame.sample_size */
+	/* frame.coding_type_ext */
+	frame.channel_allocation = params->channel_allocation;
+	frame.downmix_inhibit = params->down_mix;
+	frame.level_shift_value = params->level_shift;
+
+	err = hdmi_audio_infoframe_pack(&frame, buffer, sizeof(buffer));
+	if (err < 0) {
+		dev_err(lt9611uxc->dev, "Failed to pack audio infoframe: %zd\n", err);
+		return err;
+	}
+
+	lt9611uxc_lock(lt9611uxc);
+	/* write checksum and byte 1 to byte 5 */
+	for (i = 0; i < 6; i++)
+		regmap_write(lt9611uxc->regmap, 0xC8B4 + i, buffer[3 + i]);
+
+	lt9611uxc_unlock(lt9611uxc);
+
+	return 0;
+}
+
+static void lt9611uxc_cea_sad_to_raw_sad(struct cea_sad *sads, u8 sad_count,
+		u8 *blk)
+{
+	int i = 0;
+
+	for (i = 0; i < sad_count; i++) {
+		blk[i * 3] = (sads[i].format << 3) + sads[i].channels;
+		blk[i * 3 + 1] = sads[i].freq;
+		blk[i * 3 + 2] = sads[i].byte2;
+	}
+}
+
+static int lt9611uxc_get_edid_audio_blk(struct msm_ext_disp_audio_edid_blk *blk,
+				struct edid *edid)
+{
+	struct lt9611uxc *lt9611uxc = container_of(blk, struct lt9611uxc, audio_edid_blk);
+	int i = 0;
+
+	/* Short Audio Descriptor */
+	struct cea_sad *sads;
+	int sad_count = 0;
+
+	/* Speaker Allocation Data Block */
+	u8 *sadb = NULL;
+	int sadb_size = 0;
+
+	sad_count = drm_edid_to_sad(edid, &sads);
+	lt9611uxc_cea_sad_to_raw_sad(sads, sad_count, lt9611uxc->raw_sad);
+	sadb_size = drm_edid_to_speaker_allocation(edid, &sadb);
+	dev_info(lt9611uxc->dev, "sad_count %d, sadb_size %d\n", sad_count, sadb_size);
+
+	blk->audio_data_blk = lt9611uxc->raw_sad;
+	blk->audio_data_blk_size = sad_count * 3; /* SAD is 3B */
+	for (i = 0; i < blk->audio_data_blk_size; i++)
+		dev_info(lt9611uxc->dev, "%02X\n", blk->audio_data_blk[i]);
+
+	blk->spk_alloc_data_blk = sadb;
+	blk->spk_alloc_data_blk_size = sadb_size;
+
+	/* from CEA-861-F spec, the size is always 3 bytes */
+	for (i = 0; i < blk->spk_alloc_data_blk_size; i++)
+		dev_info(lt9611uxc->dev, "%02X\n", blk->spk_alloc_data_blk[i]);
+
+	return 0;
+}
+
+static struct lt9611uxc *lt9611uxc_audio_get_pdata(struct platform_device *pdev)
+{
+	struct msm_ext_disp_data *ext_data;
+	struct lt9611uxc *lt9611uxc;
+
+	if (!pdev) {
+		dev_err(lt9611uxc->dev, "Invalid pdev\n");
+		return ERR_PTR(-ENODEV);
+	}
+
+	ext_data = platform_get_drvdata(pdev);
+	if (!ext_data) {
+		dev_err(lt9611uxc->dev, "invalid ext disp data\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	lt9611uxc = ext_data->intf_data;
+	if (!lt9611uxc) {
+		dev_err(lt9611uxc->dev, "invalid intf data\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	return lt9611uxc;
+}
+
+static int hdmi_audio_info_setup(struct platform_device *pdev,
+		struct msm_ext_disp_audio_setup_params *params)
+{
+	struct lt9611uxc *lt9611uxc = lt9611uxc_audio_get_pdata(pdev);
+	int rc = 0;
+
+	rc = lt9611uxc_setup_audio_infoframes(lt9611uxc, params);
+
+	return 0;
+}
+
+static int hdmi_audio_get_edid_blk(struct platform_device *pdev,
+		struct msm_ext_disp_audio_edid_blk *blk)
+{
+	struct lt9611uxc *lt9611uxc = lt9611uxc_audio_get_pdata(pdev);
+
+	lt9611uxc_get_edid_audio_blk(&lt9611uxc->audio_edid_blk, lt9611uxc->edid);
+
+	blk->audio_data_blk = lt9611uxc->audio_edid_blk.audio_data_blk;
+	blk->audio_data_blk_size = lt9611uxc->audio_edid_blk.audio_data_blk_size;
+
+	blk->spk_alloc_data_blk = lt9611uxc->audio_edid_blk.spk_alloc_data_blk;
+	blk->spk_alloc_data_blk_size =
+		lt9611uxc->audio_edid_blk.spk_alloc_data_blk_size;
+
+	return 0;
+}
+
+static int hdmi_audio_get_cable_status(struct platform_device *pdev, u32 vote)
+{
+	struct lt9611uxc *lt9611uxc = lt9611uxc_audio_get_pdata(pdev);
+
+	return IS_ERR(lt9611uxc) ? PTR_ERR(lt9611uxc): lt9611uxc->hdmi_connected;
+}
+
+static int hdmi_audio_get_intf_id(struct platform_device *pdev)
+{
+	struct lt9611uxc *lt9611uxc = lt9611uxc_audio_get_pdata(pdev);
+
+	return IS_ERR(lt9611uxc) ? PTR_ERR(lt9611uxc): EXT_DISPLAY_TYPE_HDMI;
+}
+
+static void hdmi_audio_teardown_done(struct platform_device *pdev)
+{
+}
+
+static int hdmi_audio_ack_done(struct platform_device *pdev, u32 ack)
+{
+	return 0;
+}
+
+static int hdmi_audio_codec_ready(struct platform_device *pdev)
+{
+	return 0;
+}
+
+static int hdmi_audio_register_ext_disp(struct lt9611uxc *lt9611uxc)
+{
+	struct msm_ext_disp_init_data *ext;
+	struct msm_ext_disp_audio_codec_ops *ops;
+	struct device_node *np = NULL;
+	const char *phandle = "lt,ext-disp";
+
+	int rc = 0;
+
+	ext = &lt9611uxc->ext_audio_data;
+	ops = &ext->codec_ops;
+
+	ext->codec.type = EXT_DISPLAY_TYPE_HDMI;
+	ext->codec.ctrl_id = 1;
+	ext->codec.stream_id = 0;
+	ext->pdev = lt9611uxc->audio_pdev;
+	ext->intf_data = lt9611uxc;
+
+	ops->audio_info_setup   = hdmi_audio_info_setup;
+	ops->get_audio_edid_blk = hdmi_audio_get_edid_blk;
+	ops->cable_status       = hdmi_audio_get_cable_status;
+	ops->get_intf_id        = hdmi_audio_get_intf_id;
+	ops->teardown_done      = hdmi_audio_teardown_done;
+	ops->acknowledge        = hdmi_audio_ack_done;
+	ops->ready              = hdmi_audio_codec_ready;
+
+	if (!lt9611uxc->dev->of_node) {
+		dev_err(lt9611uxc->dev, "cannot find audio dev.of_node\n");
+		rc = -ENODEV;
+		goto end;
+	}
+
+	np = of_parse_phandle(lt9611uxc->dev->of_node, phandle, 0);
+	if (!np) {
+		dev_err(lt9611uxc->dev, "cannot parse %s handle\n", phandle);
+		rc = -ENODEV;
+		goto end;
+	}
+
+	lt9611uxc->ext_pdev = of_find_device_by_node(np);
+	if (!lt9611uxc->ext_pdev) {
+		dev_err(lt9611uxc->dev, "cannot find %s pdev\n", phandle);
+		rc = -ENODEV;
+		goto end;
+	}
+
+	rc = msm_ext_disp_register_intf(lt9611uxc->ext_pdev, ext);
+	if (rc)
+		dev_err(lt9611uxc->dev, "failed to register ext disp\n");
+
+end:
+	return rc;
+}
+
+static int hdmi_audio_deregister_ext_disp(struct lt9611uxc *lt9611uxc)
+{
+	int rc = 0;
+	struct device_node *pd = NULL;
+	const char *phandle = "lt,ext-disp";
+	struct msm_ext_disp_init_data *ext;
+
+	ext = &lt9611uxc->ext_audio_data;
+
+	if (!lt9611uxc->dev->of_node) {
+		dev_err(lt9611uxc->dev, "cannot find audio dev.of_node\n");
+		rc = -ENODEV;
+		goto end;
+	}
+
+	pd = of_parse_phandle(lt9611uxc->dev->of_node, phandle, 0);
+	if (!pd) {
+		dev_err(lt9611uxc->dev, "cannot parse %s handle\n", phandle);
+		rc = -ENODEV;
+		goto end;
+	}
+
+	lt9611uxc->ext_pdev = of_find_device_by_node(pd);
+	if (!lt9611uxc->ext_pdev) {
+		dev_err(lt9611uxc->dev, "cannot find %s pdev\n", phandle);
+		rc = -ENODEV;
+		goto end;
+	}
+
+	rc = msm_ext_disp_deregister_intf(lt9611uxc->ext_pdev, ext);
+	if (rc)
+		dev_err(lt9611uxc->dev, "failed to deregister ext disp\n");
+
+end:
+	return rc;
+}
+
 static irqreturn_t lt9611uxc_irq_thread_handler(int irq, void *dev_id)
 {
 	struct lt9611uxc *lt9611uxc = dev_id;
@@ -168,6 +439,13 @@ static irqreturn_t lt9611uxc_irq_thread_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static void lt9611uxc_release_edid(struct lt9611uxc *lt9611uxc)
+{
+	dev_info(lt9611uxc->dev, "release edid\n");
+	kfree(lt9611uxc->edid);
+	lt9611uxc->edid = NULL;
+}
+
 static void lt9611uxc_helper_hotplug_event(struct lt9611uxc *lt9611uxc)
 {
 	struct drm_device *dev = NULL;
@@ -191,7 +469,6 @@ static void lt9611uxc_helper_hotplug_event(struct lt9611uxc *lt9611uxc)
 	kobject_uevent_env(&dev->primary->kdev->kobj, KOBJ_CHANGE,
 		envp);
 }
-
 static void lt9611uxc_hpd_work(struct work_struct *work)
 {
 	struct lt9611uxc *lt9611uxc = container_of(work, struct lt9611uxc, work);
@@ -200,6 +477,8 @@ static void lt9611uxc_hpd_work(struct work_struct *work)
 	if (lt9611uxc->connector.dev) {
 		lt9611uxc->connector.status = (lt9611uxc->hdmi_connected) ?
 				connector_status_connected: connector_status_disconnected;
+		if (lt9611uxc->connector.status == connector_status_disconnected)
+			lt9611uxc_release_edid(lt9611uxc);
 		lt9611uxc_helper_hotplug_event(lt9611uxc);
 	} else {
 
@@ -328,12 +607,10 @@ static int lt9611uxc_connector_get_modes(struct drm_connector *connector)
 {
 	struct lt9611uxc *lt9611uxc = connector_to_lt9611uxc(connector);
 	unsigned int count;
-	struct edid *edid;
 
-	edid = lt9611uxc->bridge.funcs->get_edid(&lt9611uxc->bridge, connector);
-	drm_connector_update_edid_property(connector, edid);
-	count = drm_add_edid_modes(connector, edid);
-	kfree(edid);
+	lt9611uxc->edid = lt9611uxc->bridge.funcs->get_edid(&lt9611uxc->bridge, connector);
+	drm_connector_update_edid_property(connector, lt9611uxc->edid);
+	count = drm_add_edid_modes(connector, lt9611uxc->edid);
 
 	return count;
 }
@@ -482,6 +759,56 @@ static void lt9611uxc_video_setup(struct lt9611uxc *lt9611uxc,
 	regmap_write(lt9611uxc->regmap, 0xd01b, (u8)(hfront_porch % 256));
 }
 
+static void lt9611uxc_bridge_enable(struct drm_bridge *bridge)
+{
+	struct lt9611uxc *lt9611uxc;
+	int rc;
+
+	if (!bridge)
+		return;
+
+	pr_info("bridge enable\n");
+
+	lt9611uxc = bridge_to_lt9611uxc(bridge);
+	if (lt9611uxc->audio_support) {
+		pr_info("notify audio(%d)\n", EXT_DISPLAY_CABLE_CONNECT);
+		rc = hdmi_audio_register_ext_disp(lt9611uxc);
+		if (rc) {
+			pr_err("hdmi audio register failed. rc=%d\n", rc);
+			return;
+		}
+		lt9611uxc->ext_audio_data.intf_ops.audio_config(lt9611uxc->ext_pdev,
+				&lt9611uxc->ext_audio_data.codec,
+				EXT_DISPLAY_CABLE_CONNECT);
+		lt9611uxc->ext_audio_data.intf_ops.audio_notify(lt9611uxc->ext_pdev,
+				&lt9611uxc->ext_audio_data.codec,
+				EXT_DISPLAY_CABLE_CONNECT);
+	}
+
+}
+
+static void lt9611uxc_bridge_disable(struct drm_bridge *bridge)
+{
+	struct lt9611uxc *lt9611uxc;
+
+	if (!bridge)
+		return;
+
+	lt9611uxc = bridge_to_lt9611uxc(bridge);
+	dev_info(lt9611uxc->dev, "bridge disable\n");
+
+	if (lt9611uxc->audio_support) {
+		dev_info(lt9611uxc->dev, "notify audio(%d)\n", EXT_DISPLAY_CABLE_DISCONNECT);
+		lt9611uxc->ext_audio_data.intf_ops.audio_notify(lt9611uxc->ext_pdev,
+				&lt9611uxc->ext_audio_data.codec,
+				EXT_DISPLAY_CABLE_DISCONNECT);
+		lt9611uxc->ext_audio_data.intf_ops.audio_config(lt9611uxc->ext_pdev,
+				&lt9611uxc->ext_audio_data.codec,
+				EXT_DISPLAY_CABLE_DISCONNECT);
+		hdmi_audio_deregister_ext_disp(lt9611uxc);
+	}
+}
+
 static void lt9611uxc_bridge_mode_set(struct drm_bridge *bridge,
 				      const struct drm_display_mode *mode,
 				      const struct drm_display_mode *adj_mode)
@@ -574,6 +901,8 @@ static const struct drm_bridge_funcs lt9611uxc_bridge_funcs = {
 	.mode_set = lt9611uxc_bridge_mode_set,
 	.detect = lt9611uxc_bridge_detect,
 	.get_edid = lt9611uxc_bridge_get_edid,
+	.enable = lt9611uxc_bridge_enable,
+	.disable = lt9611uxc_bridge_disable,
 };
 
 static int lt9611uxc_parse_dt(struct device *dev,
@@ -586,6 +915,9 @@ static int lt9611uxc_parse_dt(struct device *dev,
 	}
 
 	lt9611uxc->dsi1_node = of_graph_get_remote_node(dev->of_node, 1, -1);
+
+	lt9611uxc->audio_support = of_property_read_bool(dev->of_node, "lt,audio-support");
+	dev_info(lt9611uxc->dev, "audio support = %d\n", lt9611uxc->audio_support);
 
 	return 0;
 }
