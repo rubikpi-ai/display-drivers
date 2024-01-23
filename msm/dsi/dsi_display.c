@@ -6424,8 +6424,7 @@ static int dsi_display_ext_get_mode_info(struct drm_connector *connector,
 	mode_info->no_panel_timing_node = true;
 
 	topology = &mode_info->topology;
-	topology->num_lm = (avail_res->max_mixer_width
-			<= drm_mode->hdisplay) ? 2 : 1;
+	topology->num_lm = ext_display->ctrl_count;
 	topology->num_enc = 0;
 	topology->num_intf = topology->num_lm;
 
