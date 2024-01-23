@@ -113,22 +113,10 @@ struct lt9611uxc_mode {
  * Enumerate them here to check whether the mode is supported.
  */
 static struct lt9611uxc_mode lt9611uxc_modes[] = {
+	{ 3840, 2160, 30 },
 	{ 1920, 1080, 60 },
-	{ 1920, 1080, 30 },
-	{ 1920, 1080, 25 },
-	{ 1366, 768, 60 },
-	{ 1360, 768, 60 },
-	{ 1280, 1024, 60 },
-	{ 1280, 800, 60 },
 	{ 1280, 720, 60 },
-	{ 1280, 720, 50 },
-	{ 1280, 720, 30 },
-	{ 1152, 864, 60 },
-	{ 1024, 768, 60 },
-	{ 800, 600, 60 },
-	{ 720, 576, 50 },
 	{ 720, 480, 60 },
-	{ 640, 480, 60 },
 };
 
 static struct lt9611uxc *bridge_to_lt9611uxc(struct drm_bridge *bridge)
