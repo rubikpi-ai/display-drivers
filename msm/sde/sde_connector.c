@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
  */
 
@@ -201,7 +201,7 @@ done:
 
 static int sde_backlight_device_get_brightness(struct backlight_device *bd)
 {
-	return 0;
+	return  bd->props.brightness;
 }
 
 static const struct backlight_ops sde_backlight_device_ops = {
