@@ -144,6 +144,31 @@ static struct lt9611uxc_mode lt9611uxc_modes[] = {
 	{ 640, 480, 60 },
 };
 
+#if !IS_ENABLED(CONFIG_CEC_CORE)
+static inline struct cec_adapter *cec_allocate_adapter(
+		const struct cec_adap_ops *ops, void *priv,
+		const char *name, u32 caps, u8 available_las)
+{
+	return NULL;
+}
+
+static inline int cec_s_log_addrs(struct cec_adapter *adap,
+		struct cec_log_addrs *log_addrs, bool block)
+{
+	return 0;
+}
+
+static inline void cec_transmit_attempt_done(struct cec_adapter *adap,
+					     u8 status)
+{
+}
+
+static inline void cec_received_msg(struct cec_adapter *adap,
+				    struct cec_msg *msg)
+{
+}
+#endif
+
 static struct lt9611uxc *bridge_to_lt9611uxc(struct drm_bridge *bridge)
 {
 	return container_of(bridge, struct lt9611uxc, bridge);
