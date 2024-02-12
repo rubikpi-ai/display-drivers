@@ -30,6 +30,8 @@
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_file.h>
+#include <media/cec.h>
+#include <media/cec-notifier.h>
 
 #include <linux/soc/qcom/msm_ext_display.h>
 
@@ -77,6 +79,17 @@ struct lt9611uxc {
 	struct msm_ext_disp_audio_edid_blk audio_edid_blk;
 	u8 raw_sad[MAX_NUMBER_ADB * MAX_AUDIO_DATA_BLOCK_SIZE];
 	bool audio_support;
+
+	/* CEC support */
+	struct cec_adapter *cec_adapter;
+	u8 cec_log_addr;
+	bool cec_en;
+	bool cec_support;
+	struct work_struct cec_recv_work;
+	struct work_struct cec_transmit_work;
+	bool cec_status;
+	unsigned int cec_tx_status;
+	struct cec_notifier *cec_notifier;
 };
 
 #define LT9611_PAGE_CONTROL	0xff
@@ -404,13 +417,24 @@ static irqreturn_t lt9611uxc_irq_thread_handler(int irq, void *dev_id)
 	struct lt9611uxc *lt9611uxc = dev_id;
 	unsigned int irq_status = 0;
 	unsigned int hpd_status = 0;
+	unsigned int cec_status = 0;
+	unsigned int cec_tx_status = 0;
 
 	lt9611uxc_lock(lt9611uxc);
 
 	regmap_read(lt9611uxc->regmap, 0xb022, &irq_status);
 	regmap_read(lt9611uxc->regmap, 0xb023, &hpd_status);
+	regmap_read(lt9611uxc->regmap, 0xb024, &cec_status);
+	regmap_read(lt9611uxc->regmap, 0xb027, &cec_tx_status);
+
 	if (irq_status)
 		regmap_write(lt9611uxc->regmap, 0xb022, 0);
+
+	if (cec_status)
+		regmap_write(lt9611uxc->regmap, 0xb024, 0);
+
+	if (cec_tx_status)
+		regmap_write(lt9611uxc->regmap, 0xb027, 0);
 
 	if (irq_status & BIT(0)) {
 		lt9611uxc->edid_read = !!(hpd_status & BIT(0));
@@ -420,6 +444,17 @@ static irqreturn_t lt9611uxc_irq_thread_handler(int irq, void *dev_id)
 	if (irq_status & BIT(1)) {
 		lt9611uxc->hdmi_connected = hpd_status & BIT(1);
 		schedule_work(&lt9611uxc->work);
+	}
+
+	if (irq_status & BIT(3)) {
+		lt9611uxc->cec_status = !!(cec_status & BIT(7));
+		if (lt9611uxc->cec_status)
+			schedule_work(&lt9611uxc->cec_recv_work);
+	}
+
+	if (cec_tx_status) {
+		lt9611uxc->cec_tx_status = cec_tx_status;
+		schedule_work(&lt9611uxc->cec_transmit_work);
 	}
 
 	lt9611uxc_unlock(lt9611uxc);
@@ -594,11 +629,16 @@ static struct mipi_dsi_device *lt9611uxc_attach_dsi(struct lt9611uxc *lt9611uxc,
 static int lt9611uxc_connector_get_modes(struct drm_connector *connector)
 {
 	struct lt9611uxc *lt9611uxc = connector_to_lt9611uxc(connector);
+	struct cec_notifier *notify = lt9611uxc->cec_notifier;
 	unsigned int count;
 
 	lt9611uxc->edid = lt9611uxc->bridge.funcs->get_edid(&lt9611uxc->bridge, connector);
 	drm_connector_update_edid_property(connector, lt9611uxc->edid);
 	count = drm_add_edid_modes(connector, lt9611uxc->edid);
+
+	/* TODO: add checks for num_of_edid_ext_blk == 0 case */
+	if (lt9611uxc->cec_support)
+		cec_notifier_set_phys_addr_from_edid(notify, lt9611uxc->edid);
 
 	return count;
 }
@@ -967,6 +1007,152 @@ static int lt9611uxc_read_version(struct lt9611uxc *lt9611uxc)
 	return ret < 0 ? ret : rev;
 }
 
+int lt9611_read_cec_msg(struct lt9611uxc *lt9611uxc, struct cec_msg *msg)
+{
+	unsigned int cec_val, cec_len, i;
+	unsigned int reg_cec_flag;
+
+	lt9611uxc_lock(lt9611uxc);
+	regmap_read(lt9611uxc->regmap, 0xB024, &reg_cec_flag);
+	regmap_read(lt9611uxc->regmap, 0xB030, &cec_len);
+	msg->len = (cec_len > 16) ? 16 : cec_len;
+
+	/* TODO: implement regmap_bulk_read */
+	for (i = 0; i < msg->len; i++) {
+		regmap_read(lt9611uxc->regmap, 0xB031 + i, &cec_val);
+		msg->msg[i] = cec_val;
+	}
+	// Set bit7 = 0 to tell LT9611UXC message received.
+	reg_cec_flag &= ~0x80;
+	regmap_write(lt9611uxc->regmap, 0xB024, reg_cec_flag);
+	lt9611uxc_unlock(lt9611uxc);
+
+	/* TODO hexdump */
+	for (i = 0; i < msg->len; i++)
+		dev_dbg(lt9611uxc->dev, "received msg[%d] = %x", i, msg->msg[i]);
+	return 0;
+}
+
+void lt9611uxc_cec_transmit_work(struct work_struct *work)
+{
+	struct lt9611uxc *lt9611uxc = container_of(work, struct lt9611uxc,
+					cec_transmit_work);
+
+	dev_dbg(lt9611uxc->dev, "cec_tx_status %x\n", lt9611uxc->cec_tx_status);
+
+	if (lt9611uxc->cec_tx_status & BIT(2))
+		cec_transmit_attempt_done(lt9611uxc->cec_adapter, CEC_TX_STATUS_NACK);
+	else if (lt9611uxc->cec_tx_status & BIT(0))
+		cec_transmit_attempt_done(lt9611uxc->cec_adapter, CEC_TX_STATUS_OK);
+}
+
+
+void lt9611uxc_cec_recv_work(struct work_struct *work)
+{
+	struct lt9611uxc *lt9611uxc = container_of(work, struct lt9611uxc, cec_recv_work);
+	struct cec_msg cec_msg = {};
+
+	if (!lt9611uxc->cec_status) {
+		dev_info(lt9611uxc->dev, "cec message is receiving\n");
+		return;
+	}
+
+	lt9611_read_cec_msg(lt9611uxc, &cec_msg);
+	cec_received_msg(lt9611uxc->cec_adapter, &cec_msg);
+}
+
+static int lt9611uxc_cec_enable(struct cec_adapter *adap, bool enable)
+{
+	struct lt9611uxc *lt9611uxc = cec_get_drvdata(adap);
+
+	lt9611uxc->cec_en = enable;
+	return 0;
+}
+
+static int lt9611uxc_cec_log_addr(struct cec_adapter *adap, u8 logical_addr)
+{
+	struct lt9611uxc *lt9611uxc = cec_get_drvdata(adap);
+
+	lt9611uxc->cec_log_addr = logical_addr;
+	return 0;
+}
+
+static int lt9611uxc_cec_transmit(struct cec_adapter *adap, u8 attempts,
+		u32 signal_free_time, struct cec_msg *msg)
+{
+	int i;
+	unsigned int reg_cec_flag;
+	struct lt9611uxc *lt9611uxc = cec_get_drvdata(adap);
+	unsigned int len = (msg->len > CEC_MAX_MSG_SIZE) ? 16 : msg->len;
+
+	lt9611uxc_lock(lt9611uxc);
+	regmap_read(lt9611uxc->regmap, 0xB024, &reg_cec_flag);
+	regmap_write(lt9611uxc->regmap, 0xB041, len);
+	/* TODO check regmap_bulk_write */
+	for (i = 0; i < len; i++)
+		regmap_write(lt9611uxc->regmap, 0xB042 + i, msg->msg[i]);
+	/* set bit 6 = 1 to tell LT9611UXC sending CEC message */
+	reg_cec_flag |= 0x40;
+	regmap_write(lt9611uxc->regmap, 0xB024, reg_cec_flag);
+	lt9611uxc_unlock(lt9611uxc);
+
+	/* TODO: check hexdump */
+	for (i = 0; i < len; i++)
+		dev_dbg(lt9611uxc->dev, "cec transmit msg[%d] = %x\n", i, msg->msg[i]);
+
+	return 0;
+}
+
+struct cec_adap_ops lt9611uxc_cec_ops = {
+	.adap_enable = lt9611uxc_cec_enable,
+	.adap_log_addr = lt9611uxc_cec_log_addr,
+	.adap_transmit = lt9611uxc_cec_transmit,
+};
+
+static int lt9611uxc_cec_adap_init(struct lt9611uxc *lt9611uxc)
+{
+	int ret = 0;
+	struct cec_adapter *adap = NULL;
+	unsigned int cec_flags = CEC_CAP_DEFAULTS;
+
+	adap = cec_allocate_adapter(&lt9611uxc_cec_ops, lt9611uxc,
+			"lt9611_cec", cec_flags, 1);
+	if (!adap) {
+		dev_err(lt9611uxc->dev, "cec adapter allocate failed\n");
+		return -ENOMEM;
+	}
+
+	lt9611uxc->cec_notifier = cec_notifier_cec_adap_register(lt9611uxc->dev,
+						NULL, adap);
+	if (!lt9611uxc->cec_notifier) {
+		dev_err(lt9611uxc->dev, "get cec notifier failed\n");
+		cec_delete_adapter(adap);
+		lt9611uxc->cec_adapter = NULL;
+		lt9611uxc->cec_support = false;
+		lt9611uxc->cec_en = false;
+		return -ENOMEM;
+	}
+
+	ret = cec_register_adapter(adap, lt9611uxc->dev);
+	if (ret != 0) {
+		dev_err(lt9611uxc->dev, "register cec adapter failed\n");
+		cec_delete_adapter(adap);
+		lt9611uxc->cec_adapter = NULL;
+		lt9611uxc->cec_support = false;
+		lt9611uxc->cec_en = false;
+	} else {
+		dev_dbg(lt9611uxc->dev, "CEC adapter registered\n");
+		lt9611uxc->cec_en = true;
+		lt9611uxc->cec_support = true;
+		lt9611uxc->cec_log_addr = CEC_LOG_ADDR_PLAYBACK_1;
+
+		lt9611uxc->cec_adapter = adap;
+		cec_s_log_addrs(lt9611uxc->cec_adapter, NULL, false);
+	}
+
+	return ret;
+}
+
 static int lt9611uxc_hdmi_hw_params(struct device *dev, void *data,
 				    struct hdmi_codec_daifmt *fmt,
 				    struct hdmi_codec_params *hparms)
@@ -1303,6 +1489,8 @@ retry:
 
 	init_waitqueue_head(&lt9611uxc->wq);
 	INIT_WORK(&lt9611uxc->work, lt9611uxc_hpd_work);
+	INIT_WORK(&lt9611uxc->cec_recv_work, lt9611uxc_cec_recv_work);
+	INIT_WORK(&lt9611uxc->cec_transmit_work, lt9611uxc_cec_transmit_work);
 
 	ret = devm_request_threaded_irq(dev, client->irq, NULL,
 					lt9611uxc_irq_thread_handler,
@@ -1318,6 +1506,13 @@ retry:
 	lt9611uxc->bridge.ops = DRM_BRIDGE_OP_DETECT | DRM_BRIDGE_OP_EDID;
 	if (lt9611uxc->hpd_supported)
 		lt9611uxc->bridge.ops |= DRM_BRIDGE_OP_HPD;
+
+	ret = lt9611uxc_cec_adap_init(lt9611uxc);
+	if (ret)
+		dev_err(dev, "CEC init failed. ret=%d\n", ret);
+	else
+		dev_dbg(dev, "CEC init success\n");
+
 	lt9611uxc->bridge.type = DRM_MODE_CONNECTOR_HDMIA;
 
 	drm_bridge_add(&lt9611uxc->bridge);
@@ -1339,6 +1534,11 @@ static void lt9611uxc_remove(struct i2c_client *client)
 	cancel_work_sync(&lt9611uxc->work);
 	lt9611uxc_audio_exit(lt9611uxc);
 	drm_bridge_remove(&lt9611uxc->bridge);
+	/* TODO check order of closing wq */
+	cancel_work_sync(&lt9611uxc->cec_recv_work);
+	cancel_work_sync(&lt9611uxc->cec_transmit_work);
+	if (lt9611uxc->cec_adapter)
+		cec_unregister_adapter(lt9611uxc->cec_adapter);
 
 	mutex_destroy(&lt9611uxc->ocm_lock);
 
