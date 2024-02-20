@@ -669,9 +669,10 @@ void msm_dss_mmrm_deregister(struct device *dev,
 } /* msm_dss_mmrm_deregister */
 EXPORT_SYMBOL_GPL(msm_dss_mmrm_deregister);
 
-int msm_dss_single_clk_set_rate(struct dss_clk *clk)
+int msm_dss_single_clk_set_rate(struct dss_clk *clk, struct device *dev)
 {
 	int rc = 0;
+	struct opp_table *opp_table = NULL;
 
 	if (!clk) {
 		DEV_ERR("invalid clk struct\n");
@@ -691,12 +692,22 @@ int msm_dss_single_clk_set_rate(struct dss_clk *clk)
 	if (clk->type != DSS_CLK_AHB &&
 	    clk->type != DSS_CLK_MMRM &&
 	    !clk->mmrm.flags) {
-		rc = clk_set_rate(clk->clk, clk->rate);
-		if (rc)
-			DEV_ERR("%pS->%s: %s failed. rc=%d\n",
-					__builtin_return_address(0),
-					__func__,
-					clk->clk_name, rc);
+		opp_table = dev_pm_opp_get_opp_table(dev);
+		if (!IS_ERR(opp_table)) {
+			rc = dev_pm_opp_set_rate(dev, clk->rate);
+			if (rc)
+				DEV_ERR("%pS->%s: %s failed. rc=%d\n",
+						__builtin_return_address(0),
+						__func__,
+						clk->clk_name, rc);
+		} else {
+			rc = clk_set_rate(clk->clk, clk->rate);
+			if (rc)
+				DEV_ERR("%pS->%s: %s failed. rc=%d\n",
+						__builtin_return_address(0),
+						__func__,
+						clk->clk_name, rc);
+		}
 	} else if (clk->type == DSS_CLK_MMRM) {
 		struct mmrm_client_data client_data;
 
@@ -732,13 +743,13 @@ int msm_dss_single_clk_set_rate(struct dss_clk *clk)
 } /* msm_dss_single_clk_set_rate */
 EXPORT_SYMBOL_GPL(msm_dss_single_clk_set_rate);
 
-int msm_dss_clk_set_rate(struct dss_clk *clk_arry, int num_clk)
+int msm_dss_clk_set_rate(struct dss_clk *clk_arry, int num_clk, struct device *dev)
 {
 	int i, rc = 0;
 
 	for (i = 0; i < num_clk; i++) {
 		if (clk_arry[i].clk) {
-			rc = msm_dss_single_clk_set_rate(&clk_arry[i]);
+			rc = msm_dss_single_clk_set_rate(&clk_arry[i], dev);
 			if (rc)
 				break;
 		} else {
