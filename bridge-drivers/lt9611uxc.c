@@ -117,7 +117,9 @@ static const struct regmap_config lt9611uxc_regmap_config = {
 
 struct lt9611uxc_mode {
 	u16 hdisplay;
+	u16 htotal;
 	u16 vdisplay;
+	u16 vtotal;
 	u8 vrefresh;
 };
 
@@ -126,10 +128,10 @@ struct lt9611uxc_mode {
  * Enumerate them here to check whether the mode is supported.
  */
 static struct lt9611uxc_mode lt9611uxc_modes[] = {
-	{ 3840, 2160, 30 },
-	{ 1920, 1080, 60 },
-	{ 1280, 720, 60 },
-	{ 720, 480, 60 },
+	{ 3840, 4400, 2160, 2250, 30 },
+	{ 1920, 2200, 1080, 1125, 60 },
+	{ 1280, 1650, 720,  750,  60 },
+	{ 720,  858,  480,  525,  60 },
 };
 
 #if !IS_ENABLED(CONFIG_CEC_CORE)
@@ -607,7 +609,9 @@ static struct lt9611uxc_mode *lt9611uxc_find_mode(const struct drm_display_mode 
 
 	for (i = 0; i < ARRAY_SIZE(lt9611uxc_modes); i++) {
 		if (lt9611uxc_modes[i].hdisplay == mode->hdisplay &&
+		    lt9611uxc_modes[i].htotal == mode->htotal &&
 		    lt9611uxc_modes[i].vdisplay == mode->vdisplay &&
+		    lt9611uxc_modes[i].vtotal == mode->vtotal &&
 		    lt9611uxc_modes[i].vrefresh == drm_mode_vrefresh(mode)) {
 			return &lt9611uxc_modes[i];
 		}
@@ -765,8 +769,15 @@ lt9611uxc_bridge_mode_valid(struct drm_bridge *bridge,
 			    const struct drm_display_mode *mode)
 {
 	struct lt9611uxc_mode *lt9611uxc_mode;
+	struct lt9611uxc *lt9611uxc = bridge_to_lt9611uxc(bridge);
 
 	lt9611uxc_mode = lt9611uxc_find_mode(mode);
+
+	dev_dbg(lt9611uxc->dev, "%s: %d(%d) x %d(%d)-%d\n",
+			lt9611uxc_mode ? "MODE_OK": "MODE_BAD",
+			mode->hdisplay, mode->htotal,
+			mode->vdisplay, mode->vtotal,
+			drm_mode_vrefresh(mode));
 
 	return lt9611uxc_mode ? MODE_OK : MODE_BAD;
 }
