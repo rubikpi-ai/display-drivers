@@ -492,6 +492,7 @@ static void lt9611uxc_release_edid(struct lt9611uxc *lt9611uxc)
 	dev_info(lt9611uxc->dev, "release edid\n");
 	kfree(lt9611uxc->edid);
 	lt9611uxc->edid = NULL;
+	drm_connector_update_edid_property(&lt9611uxc->connector, NULL);
 }
 
 static void lt9611uxc_helper_hotplug_event(struct lt9611uxc *lt9611uxc)
