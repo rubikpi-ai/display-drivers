@@ -6327,6 +6327,9 @@ static int dsi_display_drm_ext_get_modes(
 	}
 
 	connector->display_info = display->ext_conn->display_info;
+	/* dsi_display copy of vics is not being used.*/
+	connector->display_info.vics = NULL;
+	connector->display_info.vics_len = 0;
 
 	return count;
 }
