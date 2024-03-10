@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2014-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt)	"[drm:%s:%d]: " fmt, __func__, __LINE__
@@ -718,7 +718,7 @@ int sde_power_resource_init(struct platform_device *pdev,
 		goto clkmmrm_err;
 	}
 
-	rc = msm_dss_clk_set_rate(mp->clk_config, mp->num_clk);
+	rc = msm_dss_clk_set_rate(mp->clk_config, mp->num_clk, &pdev->dev);
 	if (rc) {
 		pr_err("clock set rate failed rc=%d\n", rc);
 		goto clkset_err;
@@ -820,7 +820,7 @@ static void sde_power_mmrm_reserve(struct sde_power_handle *phandle)
 				MMRM_CLIENT_DATA_FLAG_RESERVE_ONLY;
 
 			SDE_ATRACE_BEGIN("sde_clk_set_rate");
-			msm_dss_single_clk_set_rate(&mp->clk_config[i]);
+			msm_dss_single_clk_set_rate(&mp->clk_config[i], phandle->dev);
 			SDE_ATRACE_END("sde_clk_set_rate");
 			break;
 		}
@@ -1027,7 +1027,8 @@ int sde_power_clk_set_rate(struct sde_power_handle *phandle, char *clock_name,
 				clock_name, rate, flags);
 
 			SDE_ATRACE_BEGIN("sde_clk_set_rate");
-			rc = msm_dss_single_clk_set_rate(&mp->clk_config[i]);
+			rc = msm_dss_single_clk_set_rate(&mp->clk_config[i],
+							phandle->dev);
 			SDE_ATRACE_END("sde_clk_set_rate");
 			break;
 		}
