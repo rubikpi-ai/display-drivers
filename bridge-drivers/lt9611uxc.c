@@ -278,19 +278,19 @@ static struct lt9611uxc *lt9611uxc_audio_get_pdata(struct platform_device *pdev)
 	struct lt9611uxc *lt9611uxc;
 
 	if (!pdev) {
-		dev_err(lt9611uxc->dev, "Invalid pdev\n");
+		pr_err("Invalid pdev\n", __func__);
 		return ERR_PTR(-ENODEV);
 	}
 
 	ext_data = platform_get_drvdata(pdev);
 	if (!ext_data) {
-		dev_err(lt9611uxc->dev, "invalid ext disp data\n");
+		pr_err("Invalid ext disp data\n", __func__);
 		return ERR_PTR(-EINVAL);
 	}
 
 	lt9611uxc = ext_data->intf_data;
 	if (!lt9611uxc) {
-		dev_err(lt9611uxc->dev, "invalid intf data\n");
+		pr_err("Invalid intf data\n", __func__);
 		return ERR_PTR(-EINVAL);
 	}
 
