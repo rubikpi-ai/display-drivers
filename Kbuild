@@ -6,7 +6,8 @@ endif
 
 LINUXINCLUDE    += \
 		   -I$(DISPLAY_ROOT)/include/uapi/display \
-		   -I$(DISPLAY_ROOT)/include
+		   -I$(DISPLAY_ROOT)/include \
+		   -I$(DISPLAY_ROOT)/../recipe-sysroot/usr/include/
 USERINCLUDE     += -I$(DISPLAY_ROOT)/include/uapi/display
 
 obj-$(CONFIG_DRM_MSM) += msm/
