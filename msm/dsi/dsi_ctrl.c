@@ -9,6 +9,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/clk.h>
 #include <linux/of_irq.h>
+#include <linux/pm_opp.h>
 #include <video/mipi_display.h>
 
 #ifdef CONFIG_UIO
@@ -2179,6 +2180,20 @@ static int dsi_ctrl_dev_probe(struct platform_device *pdev)
 		DSI_CTRL_ERR(dsi_ctrl, "Failed to parse clock information, rc = %d\n",
 				rc);
 		goto fail_supplies;
+	}
+
+	rc = devm_pm_opp_set_clkname(&pdev->dev, "byte_clk");
+	if (rc) {
+		DSI_CTRL_ERR(dsi_ctrl, "Failed to set clock name, rc = %d\n",
+				rc);
+		return rc;
+	}
+
+	/* OPP table is optional */
+	rc = devm_pm_opp_of_add_table(&pdev->dev);
+	if (rc && rc != -ENODEV) {
+		dev_err(&pdev->dev, "invalid OPP table in device tree\n");
+		return ENODEV;
 	}
 
 	rc = dsi_catalog_ctrl_setup(&dsi_ctrl->hw, dsi_ctrl->version,
