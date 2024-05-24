@@ -133,6 +133,56 @@ static const struct dp_pll_params pll_params[HSCLK_RATE_MAX] = {
 		0x00, 0x00, 0x0f, 0x0a, 0x0f, 0x0a, 0x11},
 };
 
+static int set_vco_div(struct dp_pll *pll, unsigned long rate)
+{
+	u32 div, val;
+
+	if (!pll)
+		return -EINVAL;
+
+	if (is_gdsc_disabled(pll))
+		return -EINVAL;
+
+	val = dp_pll_read(dp_phy, EDP_PHY_VCO_DIV);
+	val &= ~0x03;
+
+	switch (rate) {
+	case DP_VCO_HSCLK_RATE_1620MHZDIV1000:
+	case DP_VCO_HSCLK_RATE_2700MHZDIV1000:
+		div = 2;
+		val |= 1;
+		break;
+	case DP_VCO_HSCLK_RATE_5400MHZDIV1000:
+		div = 4;
+		val |= 2;
+		break;
+	case DP_VCO_HSCLK_RATE_8100MHZDIV1000:
+		div = 6;
+		/* val = 0 for this case, so no update needed */
+		break;
+	default:
+		/* No other link rates are supported */
+		return -EINVAL;
+	}
+
+	dp_pll_write(dp_phy, EDP_PHY_VCO_DIV, val);
+	/* Make sure the PHY registers writes are done */
+	wmb();
+
+	/*
+	 * Set the rate for the link and pixel clock sources so that the
+	 * linux clock framework can appropriately compute the MND values
+	 * whenever the pixel clock rate is set.
+	 */
+	clk_set_rate(pll->clk_data->clks[0], pll->vco_rate / 10);
+	clk_set_rate(pll->clk_data->clks[1], pll->vco_rate / div);
+
+	DP_DEBUG("val=%#x div=%x link_clk rate=%lu vco_div_clk rate=%lu\n",
+			val, div, pll->vco_rate / 10, pll->vco_rate / div);
+
+	return 0;
+}
+
 static int edp_vco_pll_init_db_5nm(struct dp_pll_db *pdb,
 		unsigned long rate)
 {
@@ -286,7 +336,7 @@ static int edp_config_vco_rate_5nm(struct dp_pll *pll,
 	/* Make sure the PHY register writes are done */
 	wmb();
 
-	return 0;
+	return set_vco_div(pll, rate);
 }
 
 enum edp_5nm_pll_status {
@@ -487,48 +537,6 @@ static void edp_pll_disable_5nm(struct dp_pll *pll)
 	wmb();
 }
 
-static int edp_vco_clk_set_div(struct dp_pll *pll, unsigned int div)
-{
-	u32 val = 0;
-
-	if (!pll) {
-		DP_ERR("invalid input parameters\n");
-		return -EINVAL;
-	}
-
-	if (is_gdsc_disabled(pll))
-		return -EINVAL;
-
-	val = dp_pll_read(dp_phy, EDP_PHY_VCO_DIV);
-	val &= ~0x03;
-
-	switch (div) {
-	case 2:
-		val |= 1;
-		break;
-	case 4:
-		val |= 2;
-		break;
-	case 6:
-	/* When div = 6, val is 0, so do nothing here */
-		;
-		break;
-	case 8:
-		val |= 3;
-		break;
-	default:
-		DP_DEBUG("unsupported div value %d\n", div);
-		return -EINVAL;
-	}
-
-	dp_pll_write(dp_phy, EDP_PHY_VCO_DIV, val);
-	/* Make sure the PHY registers writes are done */
-	wmb();
-
-	DP_DEBUG("val=%d div=%x\n", val, div);
-	return 0;
-}
-
 static int edp_vco_set_rate_5nm(struct dp_pll *pll, unsigned long rate)
 {
 	int rc = 0;
@@ -569,13 +577,14 @@ static int edp_pll_configure(struct dp_pll *pll, unsigned long rate)
 	else
 		rate = DP_VCO_HSCLK_RATE_8100MHZDIV1000;
 
+	pll->vco_rate = rate;
 	rc = edp_vco_set_rate_5nm(pll, rate);
 	if (rc < 0) {
 		DP_ERR("pll rate %s set failed\n", rate);
+		pll->vco_rate = 0;
 		return rc;
 	}
 
-	pll->vco_rate = rate;
 	DP_DEBUG("pll rate %lu set success\n", rate);
 	return rc;
 }
@@ -606,6 +615,7 @@ static int  edp_pll_unprepare(struct dp_pll *pll)
 	}
 
 	edp_pll_disable_5nm(pll);
+	pll->vco_rate = 0;
 
 	return rc;
 }
@@ -683,38 +693,6 @@ static long edp_pll_vco_div_clk_round(struct clk_hw *hw, unsigned long rate,
 	return edp_pll_vco_div_clk_recalc_rate(hw, *parent_rate);
 }
 
-static int edp_pll_vco_div_clk_set_rate(struct clk_hw *hw, unsigned long rate,
-				       unsigned long parent_rate)
-{
-	struct dp_pll *pll = NULL;
-	struct dp_pll_vco_clk *pll_link = NULL;
-	int rc = 0;
-
-	if (!hw) {
-		DP_ERR("invalid input parameters\n");
-		return -EINVAL;
-	}
-
-	pll_link = to_dp_vco_hw(hw);
-	pll = pll_link->priv;
-
-	if (rate != edp_pll_vco_div_clk_get_rate(pll)) {
-		DP_ERR("unsupported rate %lu failed\n", rate);
-		return rc;
-	}
-
-	rate /= 1000;
-
-	rc = edp_vco_clk_set_div(pll, pll->vco_rate / rate);
-	if (rc < 0) {
-		DP_DEBUG("set rate %lu failed\n", rate);
-		return rc;
-	}
-
-	DP_DEBUG("set rate %lu success\n", rate);
-	return 0;
-}
-
 static const struct clk_ops edp_pll_link_clk_ops = {
 	.recalc_rate = edp_pll_link_clk_recalc_rate,
 	.round_rate = edp_pll_link_clk_round,
@@ -723,7 +701,6 @@ static const struct clk_ops edp_pll_link_clk_ops = {
 static const struct clk_ops edp_pll_vco_div_clk_ops = {
 	.recalc_rate = edp_pll_vco_div_clk_recalc_rate,
 	.round_rate = edp_pll_vco_div_clk_round,
-	.set_rate = edp_pll_vco_div_clk_set_rate,
 };
 
 static struct clk_init_data edp_phy_pll_clks[DP_PLL_NUM_CLKS] = {
