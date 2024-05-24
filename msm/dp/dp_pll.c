@@ -63,6 +63,9 @@ static int dp_pll_clock_register(struct dp_pll *pll)
 	case EDP_PLL_7NM:
 		rc = edp_pll_clock_register_7nm(pll);
 		break;
+	case EDP_PLL_5NM:
+		rc = edp_pll_clock_register_5nm(pll);
+		break;
 	default:
 		rc = -ENOTSUPP;
 		break;
@@ -78,6 +81,7 @@ static void dp_pll_clock_unregister(struct dp_pll *pll)
 	case DP_PLL_5NM_V1:
 	case DP_PLL_5NM_V2:
 	case EDP_PLL_7NM:
+	case EDP_PLL_5NM:
 		dp_pll_clock_unregister_5nm(pll);
 		break;
 	case DP_PLL_4NM_V1:
@@ -154,6 +158,8 @@ struct dp_pll *dp_pll_get(struct dp_pll_in *in)
 			pll->revision = DP_PLL_4NM_V1_1;
 		} else if (!strcmp(label, "edp-7nm")) {
 			pll->revision = EDP_PLL_7NM;
+		} else if (!strcmp(label, "edp-5nm")) {
+			pll->revision = EDP_PLL_5NM;
 		} else {
 			DP_ERR("Unsupported pll revision\n");
 			rc = -ENOTSUPP;

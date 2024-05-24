@@ -161,6 +161,7 @@ msm_drm-$(CONFIG_DRM_MSM_DP) += dp/dp_altmode.o \
 				dp/dp_pll.o \
 				dp/dp_pll_5nm.o \
 				dp/dp_pll_4nm.o \
+				dp/edp_pll_5nm.o \
 				dp/edp_pll_7nm.o
 
 msm_drm-$(CONFIG_DRM_MSM_DP_MST) += dp/dp_mst_drm.o
