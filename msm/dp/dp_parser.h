@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2021-2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (c) 2012-2021, The Linux Foundation. All rights reserved.
  */
 
@@ -26,6 +26,20 @@ enum dp_pm_type {
 	DP_LINK_PM,
 	DP_PLL_PM,
 	DP_MAX_PM
+};
+
+enum dp_pin_states {
+	DP_GPIO_AUX_ENABLE,
+	DP_GPIO_AUX_SEL,
+	DP_GPIO_USBPLUG_CC,
+	DP_GPIO_CMN_MAX = DP_GPIO_USBPLUG_CC,
+	DP_GPIO_EDP_VCC_EN,
+	DP_GPIO_EDP_MIN = DP_GPIO_EDP_VCC_EN,
+	DP_GPIO_EDP_BACKLIGHT_PWR,
+	DP_GPIO_EDP_PWM,
+	DP_GPIO_EDP_BACKLIGHT_EN,
+	DP_GPIO_EDP_MAX,
+	DP_GPIO_MAX = DP_GPIO_EDP_MAX,
 };
 
 static inline const char *dp_parser_pm_name(enum dp_pm_type module)
@@ -134,6 +148,7 @@ enum dp_phy_aux_config_type {
  * enum dp_phy_version - version of the dp phy
  * @DP_PHY_VERSION_UNKNOWN: Unknown controller version
  * @DP_PHY_VERSION_4_2_0:   DP phy v4.2.0 controller
+ * @DP_PHY_VERSION_5_0_0:   DP phy v5.0.0 controller
  * @DP_PHY_VERSION_6_0_0:   DP phy v6.0.0 controller
  * @DP_PHY_VERSION_MAX:     max version
  */
@@ -141,8 +156,27 @@ enum dp_phy_version {
 	DP_PHY_VERSION_UNKNOWN,
 	DP_PHY_VERSION_2_0_0 = 0x200,
 	DP_PHY_VERSION_4_2_0 = 0x420,
+	DP_PHY_VERSION_5_0_0 = 0x500,
 	DP_PHY_VERSION_6_0_0 = 0x600,
 	DP_PHY_VERSION_MAX
+};
+
+/**
+ * enum dp_phy_mode - mode of the dp phy
+ * @DP_PHY_MODE_UNKNOWN: Unknown PHY mode
+ * @DP_PHY_MODE_DP:      DP PHY mode
+ * @DP_PHY_MODE_MINIDP:  MiniDP PHY mode
+ * @DP_PHY_MODE_EDP:     eDP PHY mode
+ * @DP_PHY_MODE_EDP_HIGH_SWING:   eDP PHY mode, high swing/pre-empahsis
+ * @DP_PHY_MODE_MAX:     max PHY mode
+ */
+enum dp_phy_mode {
+	DP_PHY_MODE_UNKNOWN = 0,
+	DP_PHY_MODE_DP,
+	DP_PHY_MODE_MINIDP,
+	DP_PHY_MODE_EDP,
+	DP_PHY_MODE_EDP_HIGH_SWING,
+	DP_PHY_MODE_MAX
 };
 
 /**
@@ -152,6 +186,7 @@ enum dp_phy_version {
  */
 struct dp_hw_cfg {
 	enum dp_phy_version phy_version;
+	enum dp_phy_mode phy_mode;
 };
 
 static inline char *dp_phy_aux_config_type_to_string(u32 cfg_type)
@@ -197,6 +232,9 @@ static inline char *dp_phy_aux_config_type_to_string(u32 cfg_type)
  * @has_mst: MST feature enable status
  * @has_mst_sideband: MST sideband feature enable status
  * @gpio_aux_switch: presence GPIO AUX switch status
+ * @no_backlight_support: For some display type that no support backlight
+ * @ext_hpd_en: A boolean value indicates an external dp can support hotplug
+ * @is_edp: A boolean value indicates an edp interface
  * @dsc_feature_enable: DSC feature enable status
  * @fec_feature_enable: FEC feature enable status
  * @dsc_continuous_pps: PPS sent every frame by HW
@@ -213,6 +251,8 @@ static inline char *dp_phy_aux_config_type_to_string(u32 cfg_type)
  * @get_io: function to be called by client to get io data.
  * @get_io_buf: function to be called by client to get io buffers.
  * @clear_io_buf: function to be called by client to clear io buffers.
+ * @mst_fixed_display_type: mst display_type reserved for fixed topology
+ * @display_type: display type as defined in device tree.
  */
 struct dp_parser {
 	struct platform_device *pdev;
@@ -235,7 +275,13 @@ struct dp_parser {
 	bool dsc_continuous_pps;
 	bool has_widebus;
 	bool gpio_aux_switch;
+	bool no_backlight_support;
+	bool ext_hpd_en;
+	bool is_edp;
 	u32 mst_fixed_port[MAX_DP_MST_STREAMS];
+	u32 pixel_base_off[MAX_DP_MST_STREAMS];
+	const char *mst_fixed_display_type[MAX_DP_MST_STREAMS];
+	const char *display_type;
 	u32 qos_cpu_mask;
 	unsigned long qos_cpu_latency;
 

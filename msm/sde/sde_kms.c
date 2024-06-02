@@ -1942,6 +1942,7 @@ static int _sde_kms_setup_displays(struct drm_device *dev,
 	};
 #if IS_ENABLED(CONFIG_DRM_MSM_DP)
 	static const struct sde_connector_ops dp_ops = {
+		.set_info_blob = dp_connector_set_info_blob,
 		.post_init  = dp_connector_post_init,
 		.detect     = dp_connector_detect,
 		.get_modes  = dp_connector_get_modes,
@@ -2107,6 +2108,7 @@ static int _sde_kms_setup_displays(struct drm_device *dev,
 	for (i = 0; i < sde_kms->dp_display_count &&
 			priv->num_encoders < max_encoders; ++i) {
 		int idx;
+		struct dp_display_info dp_info = {0};
 
 		display = sde_kms->dp_displays[i];
 		encoder = NULL;
@@ -2118,6 +2120,13 @@ static int _sde_kms_setup_displays(struct drm_device *dev,
 			continue;
 		}
 
+		rc = dp_display_get_info(display, &dp_info);
+		if (rc) {
+			SDE_ERROR("failed to read dp info, %d\n", rc);
+			continue;
+		}
+
+		info.h_tile_instance[0] = dp_info.intf_idx[0];
 		encoder = sde_encoder_init(dev, &info);
 		if (IS_ERR_OR_NULL(encoder)) {
 			SDE_ERROR("dp encoder init failed %d\n", i);
@@ -2138,7 +2147,7 @@ static int _sde_kms_setup_displays(struct drm_device *dev,
 					display,
 					&dp_ops,
 					DRM_CONNECTOR_POLL_HPD,
-					DRM_MODE_CONNECTOR_DisplayPort);
+					info.intf_type);
 		if (connector) {
 			priv->encoders[priv->num_encoders++] = encoder;
 			priv->connectors[priv->num_connectors++] = connector;
@@ -2151,9 +2160,9 @@ static int _sde_kms_setup_displays(struct drm_device *dev,
 		/* update display cap to MST_MODE for DP MST encoders */
 		info.capabilities |= MSM_DISPLAY_CAP_MST_MODE;
 
-		for (idx = 0; idx < sde_kms->dp_stream_count &&
+		for (idx = 0; idx < dp_info.stream_cnt &&
 				priv->num_encoders < max_encoders; idx++) {
-			info.h_tile_instance[0] = idx;
+			info.h_tile_instance[0] = dp_info.intf_idx[idx];
 			encoder = sde_encoder_init(dev, &info);
 			if (IS_ERR_OR_NULL(encoder)) {
 				SDE_ERROR("dp mst encoder init failed %d\n", i);

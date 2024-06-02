@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
+ * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (c) 2015-2021, The Linux Foundation. All rights reserved.
  */
 
@@ -7,6 +8,7 @@
 
 #include <drm/drm_fourcc.h>
 #include <media/mmm_color_fmt.h>
+#include <linux/sort.h>
 
 #include "sde_kms.h"
 #include "sde_formats.h"
@@ -1285,36 +1287,56 @@ const struct msm_format *sde_get_msm_format(
 	return NULL;
 }
 
+static int __format_list_cmp(const void *a, const void *b) {
+
+	struct sde_format_extended *format_a = (struct sde_format_extended *)a;
+	struct sde_format_extended *format_b = (struct sde_format_extended *)b;
+
+	return (format_a->fourcc_format - format_b->fourcc_format);
+}
+
 uint32_t sde_populate_formats(
 		const struct sde_format_extended *format_list,
 		uint32_t *pixel_formats,
 		uint64_t *pixel_modifiers,
 		uint32_t pixel_formats_max)
 {
-	uint32_t i, fourcc_format;
+	uint32_t i, j, fourcc_format, format_list_size = 0;
+	struct sde_format_extended *temp_format_list;
 
 	if (!format_list || !pixel_formats)
 		return 0;
 
-	for (i = 0, fourcc_format = 0;
-			format_list->fourcc_format && i < pixel_formats_max;
-			++format_list) {
-		/* verify if listed format is in sde_format_map? */
+	while (format_list[format_list_size].fourcc_format)
+		++format_list_size;
 
+	temp_format_list = kcalloc(format_list_size,
+		sizeof(struct sde_format_extended), GFP_KERNEL);
+	sde_copy_formats(temp_format_list, format_list_size, 0, format_list,
+		format_list_size);
+	sort(temp_format_list, format_list_size, sizeof(*temp_format_list),
+		__format_list_cmp, NULL);
+
+	for (i = 0, j = 0, fourcc_format = 0;
+			j < format_list_size  && i < pixel_formats_max;
+			j++) {
+
+		/* verify if listed format is in sde_format_map? */
 		/* optionally return modified formats */
 		if (pixel_modifiers) {
 			/* assume same modifier for all fb planes */
-			pixel_formats[i] = format_list->fourcc_format;
-			pixel_modifiers[i++] = format_list->modifier;
+			pixel_formats[i] = temp_format_list[j].fourcc_format;
+			pixel_modifiers[i++] = temp_format_list[j].modifier;
 		} else {
 			/* assume base formats grouped together */
-			if (fourcc_format != format_list->fourcc_format) {
-				fourcc_format = format_list->fourcc_format;
+			if (fourcc_format != temp_format_list[j].fourcc_format) {
+				fourcc_format = temp_format_list[j].fourcc_format;
 				pixel_formats[i++] = fourcc_format;
 			}
 		}
 	}
 
+	kfree(temp_format_list);
 	return i;
 }
 
