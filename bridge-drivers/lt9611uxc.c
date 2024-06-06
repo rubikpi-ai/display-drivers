@@ -1018,6 +1018,9 @@ static int lt9611uxc_get_edid_block(void *data, u8 *buf, unsigned int block, siz
 	if (ret)
 		dev_err(lt9611uxc->dev, "edid read failed: %d\n", ret);
 
+	print_hex_dump_debug("EDID: ", DUMP_PREFIX_NONE, 16, 1, buf, len,
+			false);
+
 	lt9611uxc_unlock(lt9611uxc);
 
 	return 0;
