@@ -6619,7 +6619,7 @@ static void sde_crtc_setup_capabilities_blob(struct sde_kms_info *info,
 				catalog->mdp[0].ubwc_swizzle);
 	}
 
-	ddr_type = of_fdt_get_ddrtype();
+	ddr_type = sde_get_ddr_type();
 	switch (ddr_type) {
 	case LP_DDR4:
 		sde_kms_info_add_keystr(info, "DDR version", "DDR4");
