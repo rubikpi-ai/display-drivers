@@ -4087,6 +4087,7 @@ static int dp_display_probe(struct platform_device *pdev)
 	return 0;
 error:
 	devm_kfree(&pdev->dev, dp);
+	g_dp_display[index] = NULL;
 bail:
 	return rc;
 }
