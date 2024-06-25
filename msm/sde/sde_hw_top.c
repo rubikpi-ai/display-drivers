@@ -369,7 +369,7 @@ static void sde_hw_setup_vsync_source_v1(struct sde_hw_mdp *mdp,
 	_update_vsync_source(mdp, cfg);
 }
 
-void sde_hw_reset_ubwc(struct sde_hw_mdp *mdp, struct sde_mdss_cfg *m)
+static void sde_hw_reset_ubwc(struct sde_hw_mdp *mdp, struct sde_mdss_cfg *m)
 {
 	struct sde_hw_blk_reg_map c;
 	u32 ubwc_dec_version;
@@ -450,7 +450,7 @@ static void sde_hw_mdp_events(struct sde_hw_mdp *mdp, bool enable)
 	SDE_REG_WRITE(c, HW_EVENTS_CTL, enable);
 }
 
-void sde_hw_set_vm_sid_v2(struct sde_hw_sid *sid, u32 vm, struct sde_mdss_cfg *m)
+static void sde_hw_set_vm_sid_v2(struct sde_hw_sid *sid, u32 vm, struct sde_mdss_cfg *m)
 {
 	u32 offset = 0;
 	int i;
@@ -483,7 +483,7 @@ void sde_hw_set_vm_sid_v2(struct sde_hw_sid *sid, u32 vm, struct sde_mdss_cfg *m
 	SDE_REG_WRITE(&sid->hw, MDP_SID_V2_DSI1, vm << 2);
 }
 
-void sde_hw_set_vm_sid(struct sde_hw_sid *sid, u32 vm, struct sde_mdss_cfg *m)
+static void sde_hw_set_vm_sid(struct sde_hw_sid *sid, u32 vm, struct sde_mdss_cfg *m)
 {
 	if (!sid || !m)
 		return;
@@ -790,7 +790,7 @@ static void sde_hw_setup_hw_fences_config(struct sde_hw_mdp *mdp, u32 protocol_i
 	SDE_REG_WRITE(&c, offset, val);
 }
 
-void sde_hw_top_set_ppb_fifo_size(struct sde_hw_mdp *mdp, u32 pp, u32 sz)
+static void sde_hw_top_set_ppb_fifo_size(struct sde_hw_mdp *mdp, u32 pp, u32 sz)
 {
 	struct sde_hw_blk_reg_map c;
 	u32 offset, val, pp_index;

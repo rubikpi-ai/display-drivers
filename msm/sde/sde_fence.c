@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
  */
 
@@ -103,7 +103,7 @@ struct sde_hw_fence_data hw_fence_data_dpu_client[SDE_HW_FENCE_CLIENT_MAX] = {
 		0, 8, 25, 0, 0}
 };
 
-void msm_hw_fence_error_cb(u32 handle, int error, void *cb_data)
+static void msm_hw_fence_error_cb(u32 handle, int error, void *cb_data)
 {
 	struct msm_hw_fence_cb_data *msm_hw_fence_cb_data;
 	struct sde_hw_fence_error_cb_data *sde_hw_fence_error_data;

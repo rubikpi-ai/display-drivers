@@ -1192,7 +1192,7 @@ static void _sde_dbg_dump_dsi_dbg_bus(struct sde_dbg_sde_debug_bus *bus, u32 ena
 	mutex_unlock(&sde_dbg_dsi_mutex);
 }
 
-void sde_evtlog_dump_all(struct sde_dbg_evtlog *evtlog)
+static void sde_evtlog_dump_all(struct sde_dbg_evtlog *evtlog)
 {
 	char buf[SDE_EVTLOG_BUF_MAX];
 	bool update_last_entry = true;

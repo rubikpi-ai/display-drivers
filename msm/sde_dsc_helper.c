@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (c) 2012-2021 The Linux Foundation. All rights reserved.
  */
 
@@ -209,7 +209,7 @@ static int _get_rc_table_index(struct drm_dsc_config *dsc, int scr_ver)
 	return -EINVAL;
 }
 
-u8 _get_dsc_v1_2_bpg_offset(struct drm_dsc_config *dsc)
+static u8 _get_dsc_v1_2_bpg_offset(struct drm_dsc_config *dsc)
 {
 	u8 bpg_offset = 0;
 	u8 uncompressed_bpg_rate;

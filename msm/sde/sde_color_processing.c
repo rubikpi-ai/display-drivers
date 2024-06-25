@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
  */
 
@@ -2428,7 +2428,7 @@ exit:
 		sde_cp_disable_features(crtc);
 }
 
-void sde_cp_reset_unsupported_feature_wrappers(struct sde_mdss_cfg *catalog)
+static void sde_cp_reset_unsupported_feature_wrappers(struct sde_mdss_cfg *catalog)
 {
 	if (!catalog) {
 		DRM_ERROR("invalid catalog\n");
