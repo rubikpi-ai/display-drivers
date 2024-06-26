@@ -1117,20 +1117,23 @@ static int lt9611uxc_read_device_rev(struct lt9611uxc *lt9611uxc)
 
 static int lt9611uxc_read_version(struct lt9611uxc *lt9611uxc)
 {
-	unsigned int rev;
+	unsigned int rev0, rev1;
 	int ret;
 
 	lt9611uxc_lock(lt9611uxc);
 
-	ret = regmap_read(lt9611uxc->regmap, 0xb021, &rev);
+	ret = regmap_read(lt9611uxc->regmap, 0xb021, &rev0);
+	ret |= regmap_read(lt9611uxc->regmap, 0xb020, &rev1);
 	if (ret)
-		dev_err(lt9611uxc->dev, "failed to read revision: %d\n", ret);
+		dev_err(lt9611uxc->dev,
+			"failed to read LT9611uxc FW version: %d\n", ret);
 	else
-		dev_info(lt9611uxc->dev, "LT9611 version: 0x%02x\n", rev);
+		dev_info(lt9611uxc->dev, "LT9611uxc FW version: 0x%02x.%02x\n",
+			rev0, rev1);
 
 	lt9611uxc_unlock(lt9611uxc);
 
-	return ret < 0 ? ret : rev;
+	return ret < 0 ? ret : rev0;
 }
 
 int lt9611_read_cec_msg(struct lt9611uxc *lt9611uxc, struct cec_msg *msg)
