@@ -575,7 +575,7 @@ static bool dsi_bridge_mode_fixup(struct drm_bridge *bridge,
 	return true;
 }
 
-u32 dsi_drm_get_dfps_maxfps(void *display)
+static u32 dsi_drm_get_dfps_maxfps(void *display)
 {
 	u32 dfps_maxfps = 0;
 	struct dsi_display *dsi_display = display;
