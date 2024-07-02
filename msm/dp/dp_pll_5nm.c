@@ -399,7 +399,7 @@ enum dp_5nm_pll_status {
 	TSYNC_DONE,
 };
 
-char *dp_5nm_pll_get_status_name(enum dp_5nm_pll_status status)
+static char *dp_5nm_pll_get_status_name(enum dp_5nm_pll_status status)
 {
 	switch (status) {
 	case C_READY:
@@ -659,7 +659,7 @@ static int dp_pll_unprepare(struct dp_pll *pll)
 	return rc;
 }
 
-unsigned long dp_vco_recalc_rate_5nm(struct dp_pll *pll)
+static unsigned long dp_vco_recalc_rate_5nm(struct dp_pll *pll)
 {
 	u32 hsclk_sel, link_clk_divsel, hsclk_div, link_clk_div = 0;
 	unsigned long vco_rate = 0;
