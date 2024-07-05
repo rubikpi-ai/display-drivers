@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (c) 2016-2021 The Linux Foundation. All rights reserved.
  */
 
@@ -34,6 +34,13 @@
 
 #define SDE_ERROR_DCE(e, fmt, ...) SDE_ERROR("enc%d " fmt,\
 		(e) ? (e)->base.base.id : -1, ##__VA_ARGS__)
+
+void sde_encoder_dce_disable(struct sde_encoder_virt *sde_enc);
+int sde_encoder_dce_setup(struct sde_encoder_virt *sde_enc,
+		struct sde_encoder_kickoff_params *params);
+void sde_encoder_dce_set_bpp(struct msm_mode_info mode_info,
+		struct drm_crtc *crtc);
+int sde_encoder_dce_flush(struct sde_encoder_virt *sde_enc);
 
 bool sde_encoder_is_dsc_merge(struct drm_encoder *drm_enc)
 {
@@ -826,7 +833,7 @@ static void _dce_vdc_disable(struct sde_encoder_virt *sde_enc)
 	 */
 }
 
-bool _dce_dsc_is_dirty(struct sde_encoder_virt *sde_enc)
+static bool _dce_dsc_is_dirty(struct sde_encoder_virt *sde_enc)
 {
 	int i;
 
@@ -842,7 +849,7 @@ bool _dce_dsc_is_dirty(struct sde_encoder_virt *sde_enc)
 	return false;
 }
 
-bool _dce_vdc_is_dirty(struct sde_encoder_virt *sde_enc)
+static bool _dce_vdc_is_dirty(struct sde_encoder_virt *sde_enc)
 {
 	int i;
 
@@ -877,7 +884,7 @@ static void _dce_helper_flush_dsc(struct sde_encoder_virt *sde_enc)
 	}
 }
 
-void _dce_helper_flush_vdc(struct sde_encoder_virt *sde_enc)
+static void _dce_helper_flush_vdc(struct sde_encoder_virt *sde_enc)
 {
 	int i;
 	struct sde_hw_ctl *hw_ctl = NULL;

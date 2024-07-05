@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (c) 2015-2021, The Linux Foundation. All rights reserved.
  */
 
@@ -2655,7 +2655,7 @@ static void sde_encoder_phys_wb_destroy(struct sde_encoder_phys *phys_enc)
 	kfree(wb_enc);
 }
 
-void sde_encoder_phys_wb_add_enc_to_minidump(struct sde_encoder_phys *phys_enc)
+static void sde_encoder_phys_wb_add_enc_to_minidump(struct sde_encoder_phys *phys_enc)
 {
 	struct sde_encoder_phys_wb *wb_enc = to_sde_encoder_phys_wb(phys_enc);
 

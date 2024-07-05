@@ -94,7 +94,8 @@ EXTRA_CFLAGS += -Wheader-guard
 endif
 
 ccflags-y +=  -Wno-attribute-warning -Wno-maybe-uninitialized -Wno-int-conversion \
-			-Wno-sequence-point -Wnonnull -Wno-unused -Wno-format -Wno-implicit-function-declaration
+			-Wno-sequence-point -Wnonnull -Wno-unused -Wno-format \
+			-Wno-implicit-function-declaration -Wmissing-prototypes
 
 ifneq ($(MODNAME), qdsp6v2)
 CHIP_NAME ?= $(MODNAME)

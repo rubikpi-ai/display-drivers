@@ -396,7 +396,7 @@ void sde_plane_set_revalidate(struct drm_plane *plane, bool enable)
 	psde->revalidate = enable;
 }
 
-int sde_plane_danger_signal_ctrl(struct drm_plane *plane, bool enable)
+static int sde_plane_danger_signal_ctrl(struct drm_plane *plane, bool enable)
 {
 	struct sde_plane *psde;
 	int rc;
