@@ -278,19 +278,19 @@ static struct lt9611uxc *lt9611uxc_audio_get_pdata(struct platform_device *pdev)
 	struct lt9611uxc *lt9611uxc;
 
 	if (!pdev) {
-		pr_err("Invalid pdev\n", __func__);
+		pr_err("%s:Invalid pdev\n", __func__);
 		return ERR_PTR(-ENODEV);
 	}
 
 	ext_data = platform_get_drvdata(pdev);
 	if (!ext_data) {
-		pr_err("Invalid ext disp data\n", __func__);
+		pr_err("%s:Invalid ext disp data\n", __func__);
 		return ERR_PTR(-EINVAL);
 	}
 
 	lt9611uxc = ext_data->intf_data;
 	if (!lt9611uxc) {
-		pr_err("Invalid intf data\n", __func__);
+		pr_err("%s:Invalid intf data\n", __func__);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -584,7 +584,8 @@ static int lt9611uxc_regulator_init(struct lt9611uxc *lt9611uxc)
 
 	ret = regulator_set_voltage(lt9611uxc->supplies[1].consumer, 3300000, 3500000);
 	if (ret) {
-		pr_err("%s:regulator set voltage failed %d", __func__, ret);
+		dev_err(lt9611uxc->dev, "%s:regulator set voltage failed %d\n",
+				__func__, ret);
 		return ret;
 	}
 
@@ -703,7 +704,7 @@ static void lt9611uxc_choose_best_mode(struct drm_connector *connector)
 static void lt9611uxc_set_preferred_mode(struct drm_connector *connector)
 {
 	struct lt9611uxc *lt9611uxc = connector_to_lt9611uxc(connector);
-	struct drm_display_mode *mode, *last_mode;
+	struct drm_display_mode *mode;
 	const char *string;
 
 	if (lt9611uxc->fix_mode) {
@@ -728,7 +729,7 @@ static void lt9611uxc_set_preferred_mode(struct drm_connector *connector)
 		} else if (lt9611uxc->edid)
 			lt9611uxc_choose_best_mode(connector);
 		else
-			pr_err("EDID is NULL \n");
+			dev_err(lt9611uxc->dev, "%s:EDID is NULL\n", __func__);
 	}
 }
 
@@ -904,19 +905,23 @@ static void lt9611uxc_video_setup(struct lt9611uxc *lt9611uxc,
 static void lt9611uxc_bridge_enable(struct drm_bridge *bridge)
 {
 	struct lt9611uxc *lt9611uxc;
+	struct device *dev;
 	int rc;
 
 	if (!bridge)
 		return;
 
-	pr_info("bridge enable\n");
-
 	lt9611uxc = bridge_to_lt9611uxc(bridge);
+	dev = lt9611uxc->dev;
+
+	dev_info(dev, "bridge enable\n");
+
 	if (lt9611uxc->audio_support) {
-		pr_info("notify audio(%d)\n", EXT_DISPLAY_CABLE_CONNECT);
+		dev_info(dev, "notify audio(%d)\n", EXT_DISPLAY_CABLE_CONNECT);
 		rc = hdmi_audio_register_ext_disp(lt9611uxc);
 		if (rc) {
-			pr_err("hdmi audio register failed. rc=%d\n", rc);
+			dev_err(dev, "%s:hdmi audio register failed. rc=%d\n",
+				__func__, rc);
 			return;
 		}
 		lt9611uxc->ext_audio_data.intf_ops.audio_config(lt9611uxc->ext_pdev,
