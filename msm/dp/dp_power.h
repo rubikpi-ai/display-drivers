@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2021-2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2022,2024 Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (c) 2012-2021, The Linux Foundation. All rights reserved.
  */
 
@@ -45,6 +45,8 @@ struct dp_power {
 	int (*power_mmrm_init)(struct dp_power *power,
                 struct sde_power_handle *phandle, void *dp,
 		int (*dp_display_mmrm_callback)(struct mmrm_client_notifier_data *notifier_data));
+	int (*edp_panel_set_gpio)(struct dp_power *power, enum dp_pin_states pin_state,
+				bool enable);
 };
 
 /**

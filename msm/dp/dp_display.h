@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2021-2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
  */
 
@@ -11,11 +11,20 @@
 #include <drm/sde_drm.h>
 
 #include "dp_panel.h"
+#include "dp_parser.h"
 
+#define MAX_DP_ACTIVE_DISPLAY	8
 
 enum dp_drv_state {
 	PM_DEFAULT,
 	PM_SUSPEND,
+};
+
+struct dp_display_info {
+	u32 cell_idx;
+	u32 intf_idx[DP_STREAM_MAX];
+	u32 phy_idx;
+	u32 stream_cnt;
 };
 
 struct dp_mst_drm_cbs {
@@ -46,6 +55,7 @@ struct dp_display {
 	void *base_dp_panel;
 	bool is_sst_connected;
 	bool is_mst_supported;
+	bool is_edp;
 	bool dsc_cont_pps;
 	u32 max_pclk_khz;
 	void *dp_mst_prv_info;
@@ -53,6 +63,8 @@ struct dp_display {
 	u32 max_dsc_count;
 	void *dp_ipc_log;
 	void *dp_aux_ipc_log;
+	bool no_backlight_support;
+	bool ext_hpd_en;
 
 	int (*enable)(struct dp_display *dp_display, void *panel);
 	int (*post_enable)(struct dp_display *dp_display, void *panel);
@@ -109,6 +121,11 @@ struct dp_display {
 			struct msm_resource_caps_info *max_dp_avail_res);
 	void (*clear_reservation)(struct dp_display *dp, struct dp_panel *panel);
 	int (*get_mst_pbn_div)(struct dp_display *dp);
+	int (*get_display_type)(struct dp_display *dp_display,
+			const char **display_type);
+	int (*mst_get_fixed_topology_display_type)(struct dp_display *dp_display,
+			u32 strm_id, const char **display_type);
+	int (*edp_detect)(struct dp_display *dp_display);
 };
 
 void *get_ipc_log_context(void);
@@ -118,6 +135,7 @@ int dp_display_get_num_of_displays(void);
 int dp_display_get_displays(void **displays, int count);
 int dp_display_get_num_of_streams(void);
 int dp_display_mmrm_callback(struct mmrm_client_notifier_data *notifier_data);
+int dp_display_get_info(void *dp_display, struct dp_display_info *dp_info);
 #else
 static inline int dp_display_get_num_of_displays(void)
 {
@@ -128,6 +146,10 @@ static inline int dp_display_get_displays(void **displays, int count)
 	return 0;
 }
 static inline int dp_display_get_num_of_streams(void)
+{
+	return 0;
+}
+static inline int dp_display_get_info(void *dp_display, struct dp_display_info *dp_info)
 {
 	return 0;
 }

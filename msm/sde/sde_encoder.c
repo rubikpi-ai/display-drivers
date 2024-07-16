@@ -776,6 +776,7 @@ void sde_encoder_destroy(struct drm_encoder *drm_enc)
 			phys->ops.destroy(phys);
 			--sde_enc->num_phys_encs;
 			sde_enc->phys_vid_encs[i] = NULL;
+			sde_enc->phys_encs[i] = NULL;
 		}
 
 		phys = sde_enc->phys_cmd_encs[i];
@@ -783,6 +784,7 @@ void sde_encoder_destroy(struct drm_encoder *drm_enc)
 			phys->ops.destroy(phys);
 			--sde_enc->num_phys_encs;
 			sde_enc->phys_cmd_encs[i] = NULL;
+			sde_enc->phys_encs[i] = NULL;
 		}
 
 		phys = sde_enc->phys_encs[i];
@@ -6004,6 +6006,9 @@ static int sde_encoder_setup_display(struct sde_encoder_virt *sde_enc,
 	if (disp_info->intf_type == DRM_MODE_CONNECTOR_DSI) {
 		*drm_enc_mode = DRM_MODE_ENCODER_DSI;
 		intf_type = INTF_DSI;
+	} else if (disp_info->intf_type == DRM_MODE_CONNECTOR_eDP) {
+		*drm_enc_mode = DRM_MODE_ENCODER_TMDS;
+		intf_type = INTF_DP;
 	} else if (disp_info->intf_type == DRM_MODE_CONNECTOR_HDMIA) {
 		*drm_enc_mode = DRM_MODE_ENCODER_TMDS;
 		intf_type = INTF_HDMI;

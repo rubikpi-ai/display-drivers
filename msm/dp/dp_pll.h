@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
  */
 
@@ -14,10 +14,18 @@
 #include "sde_dbg.h"
 
 #define DP_VCO_HSCLK_RATE_1620MHZDIV1000	1620000UL
+#define DP_VCO_HSCLK_RATE_2160MHZDIV1000        2160000UL
+#define DP_VCO_HSCLK_RATE_2430MHZDIV1000        2430000UL
 #define DP_VCO_HSCLK_RATE_2700MHZDIV1000	2700000UL
+#define DP_VCO_HSCLK_RATE_3240MHZDIV1000        3240000UL
+#define DP_VCO_HSCLK_RATE_4320MHZDIV1000        4320000UL
 #define DP_VCO_HSCLK_RATE_5400MHZDIV1000	5400000UL
+#define DP_VCO_HSCLK_RATE_5940MHZDIV1000        5940000UL
 #define DP_VCO_HSCLK_RATE_8100MHZDIV1000	8100000UL
 #define DP_PHY_VCO_DIV				0x0070
+
+#define DP_PLL_NUM_CLKS				2
+#define DP_PLL_NAME_MAX_SIZE			32
 
 #define dp_pll_get_base(x) pll->io.x->io.base
 
@@ -39,6 +47,7 @@ enum dp_pll_revision {
 	DP_PLL_5NM_V2,
 	DP_PLL_4NM_V1,
 	DP_PLL_4NM_V1_1,
+	EDP_PLL_7NM,
 };
 
 enum hsclk_rate {
@@ -47,6 +56,19 @@ enum hsclk_rate {
 	HSCLK_RATE_5400MHZ,
 	HSCLK_RATE_8100MHZ,
 	HSCLK_RATE_MAX,
+};
+
+enum edp_hsclk_rate {
+	EDP_HSCLK_RATE_1620MHZ,
+	EDP_HSCLK_RATE_2160MHZ,
+	EDP_HSCLK_RATE_2430MHZ,
+	EDP_HSCLK_RATE_2700MHZ,
+	EDP_HSCLK_RATE_3240MHZ,
+	EDP_HSCLK_RATE_4320MHZ,
+	EDP_HSCLK_RATE_5400MHZ,
+	EDP_HSCLK_RATE_5940MHZ,
+	EDP_HSCLK_RATE_8100MHZ,
+	EDP_HSCLK_RATE_MAX,
 };
 
 static inline const char *dp_pll_get_revision(enum dp_pll_revision rev)
@@ -58,6 +80,7 @@ static inline const char *dp_pll_get_revision(enum dp_pll_revision rev)
 	case DP_PLL_5NM_V2:	return "DP_PLL_5NM_V2";
 	case DP_PLL_4NM_V1:	return "DP_PLL_4NM_V1";
 	case DP_PLL_4NM_V1_1:	return "DP_PLL_4NM_V1_1";
+	case EDP_PLL_7NM:	return "EDP_PLL_7NM";
 	default:		return "???";
 	}
 }
@@ -73,36 +96,11 @@ struct dp_pll_io {
 struct dp_pll_vco_clk {
 	struct clk_hw hw;
 	void		*priv;
+	struct clk_init_data init_data;
+	char name[DP_PLL_NAME_MAX_SIZE];
 };
 
-struct dp_pll {
-	/* target pll revision information */
-	u32 revision;
-	/* save vco current rate */
-	unsigned long vco_rate;
-	/*
-	 * PLL index if multiple index are available. Eg. in case of
-	 * DSI we have 2 plls.
-	 */
-	uint32_t index;
-
-	bool ssc_en;
-	bool bonding_en;
-
-	void *priv;
-	struct platform_device *pdev;
-	struct dp_parser *parser;
-	struct dp_power *power;
-	struct dp_aux *aux;
-	struct dp_pll_io io;
-	struct clk_onecell_data *clk_data;
-	u32 dp_core_revision;
-	u32 clk_factor;
-
-	int (*pll_cfg)(struct dp_pll *pll, unsigned long rate);
-	int (*pll_prepare)(struct dp_pll *pll);
-	int (*pll_unprepare)(struct dp_pll *pll);
-};
+struct dp_pll;
 
 struct dp_pll_params {
 	/* COM PHY settings */
@@ -140,6 +138,38 @@ struct dp_pll_db {
 	const struct dp_pll_params *pll_params;
 };
 
+struct dp_pll {
+	/* target pll revision information */
+	u32 revision;
+	/* save vco current rate */
+	unsigned long vco_rate;
+	/*
+	 * PLL index if multiple index are available. Eg. in case of
+	 * DSI we have 2 plls.
+	 */
+	uint32_t index;
+	const char *name;
+
+	bool ssc_en;
+	bool bonding_en;
+
+	void *priv;
+	struct dp_pll_db pll_db;
+	struct dp_pll_vco_clk pll_clks[DP_PLL_NUM_CLKS];
+	struct platform_device *pdev;
+	struct dp_parser *parser;
+	struct dp_power *power;
+	struct dp_aux *aux;
+	struct dp_pll_io io;
+	struct clk_onecell_data *clk_data;
+	u32 dp_core_revision;
+	u32 clk_factor;
+
+	int (*pll_cfg)(struct dp_pll *pll, unsigned long rate);
+	int (*pll_prepare)(struct dp_pll *pll);
+	int (*pll_unprepare)(struct dp_pll *pll);
+};
+
 static inline struct dp_pll_vco_clk *to_dp_vco_hw(struct clk_hw *hw)
 {
 	return container_of(hw, struct dp_pll_vco_clk, hw);
@@ -154,6 +184,7 @@ int dp_pll_clock_register_5nm(struct dp_pll *pll);
 void dp_pll_clock_unregister_5nm(struct dp_pll *pll);
 int dp_pll_clock_register_4nm(struct dp_pll *pll);
 void dp_pll_clock_unregister_4nm(struct dp_pll *pll);
+int edp_pll_clock_register_7nm(struct dp_pll *pll);
 
 struct dp_pll_in {
 	struct platform_device *pdev;
