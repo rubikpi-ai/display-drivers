@@ -275,6 +275,7 @@ struct dp_parser {
 	bool dsc_continuous_pps;
 	bool has_widebus;
 	bool gpio_aux_switch;
+	bool no_aux_switch_parser;
 	bool no_backlight_support;
 	bool ext_hpd_en;
 	bool is_edp;

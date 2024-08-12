@@ -786,7 +786,9 @@ static int dp_aux_configure_fsa_switch(struct dp_aux *dp_aux,
 
 	if (!aux->aux_switch_node) {
 		DP_AUX_DEBUG(dp_aux, "undefined fsa4480 handle\n");
+#ifdef CONFIG_QCOM_FSA4480_I2C
 		rc = -EINVAL;
+#endif
 		goto end;
 	}
 
@@ -808,10 +810,13 @@ static int dp_aux_configure_fsa_switch(struct dp_aux *dp_aux,
 	DP_AUX_DEBUG(dp_aux, "enable=%d, orientation=%d, event=%d\n",
 			enable, orientation, event);
 
+#ifdef CONFIG_QCOM_FSA4480_I2C
 	rc = fsa4480_switch_event(aux->aux_switch_node, event);
 
 	if (rc)
 		DP_AUX_ERR(dp_aux, "failed to configure fsa4480 i2c device (%d)\n", rc);
+#endif
+
 end:
 	return rc;
 }
@@ -883,11 +888,20 @@ struct dp_aux *dp_aux_get(struct device *dev, struct dp_catalog_aux *catalog,
 	struct dp_aux_private *aux;
 	struct dp_aux *dp_aux = NULL;
 
+#ifndef CONFIG_QCOM_FSA4480_I2C
+	if (!catalog || !parser ||
+	    (!parser->no_aux_switch_parser && !aux_switch && !parser->gpio_aux_switch)) {
+		DP_AUX_ERR(dp_aux, "invalid input\n");
+		rc = -ENODEV;
+		goto error;
+	}
+#else
 	if (!catalog || !parser) {
 		DP_AUX_ERR(dp_aux, "invalid input\n");
 		rc = -ENODEV;
 		goto error;
 	}
+#endif
 
 	aux = devm_kzalloc(dev, sizeof(*aux), GFP_KERNEL);
 	if (!aux) {

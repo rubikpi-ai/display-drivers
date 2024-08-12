@@ -2201,6 +2201,7 @@ static int dp_init_sub_modules(struct dp_display_private *dp)
 	if (!dp->aux_switch_node) {
 		DP_DEBUG("cannot parse %s handle\n", phandle);
 		dp->no_aux_switch = true;
+		dp->parser->no_aux_switch_parser = true;
 	}
 
 	dp->aux = dp_aux_get(dev, &dp->catalog->aux, dp->parser,
