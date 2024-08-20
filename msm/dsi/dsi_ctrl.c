@@ -29,6 +29,8 @@
 
 #include "sde_dbg.h"
 
+#include <drm/bridge/lontium-lt9611.h>
+
 #define DSI_CTRL_DEFAULT_LABEL "MDSS DSI CTRL"
 
 #define DSI_CTRL_TX_TO_MS     1200
@@ -4091,6 +4093,15 @@ int dsi_ctrl_set_vid_engine_state(struct dsi_ctrl *dsi_ctrl,
 	DSI_CTRL_DEBUG(dsi_ctrl, "Set video engine state:%d, skip_op:%d\n",
 					state, skip_op);
 	dsi_ctrl_update_state(dsi_ctrl, DSI_CTRL_OP_VID_ENGINE, state);
+
+	if (on) {
+		DSI_CTRL_ERR(dsi_ctrl, "Init lt9611\n");
+		msleep(2000);
+		lt9611_on(true);
+	} else {
+		DSI_CTRL_ERR(dsi_ctrl, "Disable lt9611 output\n");
+		lt9611_on(false);
+	}
 error:
 	mutex_unlock(&dsi_ctrl->ctrl_lock);
 	return rc;
