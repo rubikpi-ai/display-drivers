@@ -139,6 +139,12 @@ static struct lt9611uxc_mode lt9611uxc_modes[] = {
 	{ 720,  858,  480,  525,  60 },
 };
 
+struct drm_display_mode default_mode = {
+	/* VIC 16 */
+	DRM_MODE("1920x1080", DRM_MODE_TYPE_DRIVER, 148500, 1920, 2008, 2052,
+			2200, 0, 1080, 1084, 1089, 1125, 0,
+			DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC) };
+
 #if !IS_ENABLED(CONFIG_CEC_CORE)
 static inline struct cec_adapter *cec_allocate_adapter(
 		const struct cec_adap_ops *ops, void *priv,
@@ -628,6 +634,23 @@ static struct lt9611uxc_mode *lt9611uxc_find_mode(const struct drm_display_mode 
 	return NULL;
 }
 
+static int lt9611uxc_add_default_mode(struct drm_connector *connector)
+{
+	struct lt9611uxc *lt9611uxc = connector_to_lt9611uxc(connector);
+	struct drm_display_mode *m, *mode = &default_mode;
+
+	m = drm_mode_duplicate(connector->dev, mode);
+	if (!m) {
+		dev_err(lt9611uxc->dev, "failed to create mode\n");
+		return -ENOMEM;
+	}
+	drm_mode_probed_add(connector, m);
+
+	dev_info(lt9611uxc->dev, "default mode %s@%d\n", mode->name,
+				drm_mode_vrefresh(mode));
+	return 0;
+}
+
 static struct mipi_dsi_device *lt9611uxc_attach_dsi(struct lt9611uxc *lt9611uxc,
 						    struct device_node *dsi_node)
 {
@@ -706,6 +729,11 @@ static void lt9611uxc_set_preferred_mode(struct drm_connector *connector)
 	struct lt9611uxc *lt9611uxc = connector_to_lt9611uxc(connector);
 	struct drm_display_mode *mode;
 	const char *string;
+
+	if (list_empty(&connector->probed_modes)) {
+		dev_info(lt9611uxc->dev, "no modes present, add default mode");
+		lt9611uxc_add_default_mode(&lt9611uxc->connector);
+	}
 
 	if (lt9611uxc->fix_mode) {
 		list_for_each_entry(mode, &connector->probed_modes, head) {
@@ -1043,6 +1071,10 @@ static struct edid *lt9611uxc_bridge_get_edid(struct drm_bridge *bridge,
 		return NULL;
 	} else if (ret == 0) {
 		dev_err(lt9611uxc->dev, "wait for EDID timeout\n");
+
+		if (lt9611uxc->hdmi_connected)
+			lt9611uxc_add_default_mode(&lt9611uxc->connector);
+
 		return NULL;
 	}
 
