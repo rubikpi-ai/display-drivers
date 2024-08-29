@@ -7634,6 +7634,10 @@ int dsi_display_find_mode(struct dsi_display *display,
 	count = display->panel->num_display_modes;
 	mutex_unlock(&display->display_lock);
 
+	/* For panels without modes defined in dt, return early */
+	if (!count)
+		return -EINVAL;
+
 	if (!display->modes) {
 		rc = dsi_display_get_modes(display, &m);
 		if (rc)
