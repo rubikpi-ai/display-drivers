@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (c) 2009-2021, The Linux Foundation. All rights reserved.
  */
 
@@ -1192,7 +1192,7 @@ static void _sde_dbg_dump_dsi_dbg_bus(struct sde_dbg_sde_debug_bus *bus, u32 ena
 	mutex_unlock(&sde_dbg_dsi_mutex);
 }
 
-void sde_evtlog_dump_all(struct sde_dbg_evtlog *evtlog)
+static void sde_evtlog_dump_all(struct sde_dbg_evtlog *evtlog)
 {
 	char buf[SDE_EVTLOG_BUF_MAX];
 	bool update_last_entry = true;
@@ -2874,8 +2874,8 @@ void sde_dbg_reg_register_dump_range(const char *base_name,
 		return;
 	}
 
-	if (offset_start > offset_end) {
-		pr_err("%pS: bad range, base_name %s, range_name %s, offset_start 0x%X, end 0x%X\n",
+	if ((!offset_start && !offset_end) || (offset_start > offset_end)) {
+		pr_info("%pS: bad range, base_name %s, range_name %s, offset_start 0x%X, end 0x%X\n",
 				__builtin_return_address(0), base_name,
 				range_name, offset_start, offset_end);
 		return;

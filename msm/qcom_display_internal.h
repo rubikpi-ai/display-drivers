@@ -1,7 +1,7 @@
 
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef __QCOM_DISPLAY_INTERNAL_H__
@@ -151,10 +151,6 @@ static inline int qcom_iommu_enable_s1_translation(struct iommu_domain *domain)
 
 static inline int mem_buf_dma_buf_copy_vmperm(struct dma_buf *dmabuf, int **vmids, int **perms,
  		int *nr_acl_entries)
-{
-	return 0;
-}
-static inline int of_fdt_get_ddrtype(void)
 {
 	return 0;
 }

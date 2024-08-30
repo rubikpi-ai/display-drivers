@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
  */
 
@@ -217,7 +217,7 @@ void msm_property_install_volatile_range(struct msm_property_info *info,
  * @property_idx: Property index
  * @force_dirty: Whether or not to filter 'dirty' status on unchanged values
  */
-void msm_property_install_enum_helper(struct msm_property_info *info,
+static void msm_property_install_enum_helper(struct msm_property_info *info,
 		const char *name, int flags, int is_bitmask,
 		const struct drm_prop_enum_list *values, int num_values,
 		u32 init_idx, uint32_t property_idx, bool force_dirty)

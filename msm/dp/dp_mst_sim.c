@@ -1653,7 +1653,7 @@ int dp_sim_destroy_bridge(struct dp_aux_bridge *bridge)
 	return 0;
 }
 
-int dp_sim_probe(struct platform_device *pdev)
+static int dp_sim_probe(struct platform_device *pdev)
 {
 	struct dp_sim_device *dp_sim_dev;
 	struct dp_aux_bridge *bridge;
@@ -1694,7 +1694,7 @@ fail:
 	return ret;
 }
 
-int dp_sim_remove(struct platform_device *pdev)
+static int dp_sim_remove(struct platform_device *pdev)
 {
 	struct dp_sim_device *dp_sim_dev;
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (c) 2012-2021, The Linux Foundation. All rights reserved.
  */
 
@@ -1510,7 +1510,7 @@ static void dp_ctrl_isr(struct dp_ctrl *dp_ctrl)
 		dp_ctrl_idle_patterns_sent(ctrl);
 }
 
-void dp_ctrl_set_sim_mode(struct dp_ctrl *dp_ctrl, bool en)
+static void dp_ctrl_set_sim_mode(struct dp_ctrl *dp_ctrl, bool en)
 {
 	struct dp_ctrl_private *ctrl;
 
@@ -1522,7 +1522,7 @@ void dp_ctrl_set_sim_mode(struct dp_ctrl *dp_ctrl, bool en)
 	DP_INFO("sim_mode=%d\n", ctrl->sim_mode);
 }
 
-int dp_ctrl_setup_misr(struct dp_ctrl *dp_ctrl)
+static int dp_ctrl_setup_misr(struct dp_ctrl *dp_ctrl)
 {
 	struct dp_ctrl_private *ctrl;
 
@@ -1534,7 +1534,7 @@ int dp_ctrl_setup_misr(struct dp_ctrl *dp_ctrl)
 	return ctrl->catalog->setup_misr(ctrl->catalog);
 }
 
-int dp_ctrl_read_misr(struct dp_ctrl *dp_ctrl, struct dp_misr40_data *data)
+static int dp_ctrl_read_misr(struct dp_ctrl *dp_ctrl, struct dp_misr40_data *data)
 {
 	struct dp_ctrl_private *ctrl;
 

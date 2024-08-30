@@ -2178,6 +2178,12 @@ static inline void sde_hw_catalog_irq_offset_list_delete(
 }
 
 /**
+ * sde_get_ddr_type - get ddr type of device from devicetree
+ *                    node
+ */
+u64 sde_get_ddr_type(void);
+
+/**
  * sde_hw_sspp_multirect_enabled - check multirect enabled for the sspp
  * @cfg:          pointer to sspp cfg
  */

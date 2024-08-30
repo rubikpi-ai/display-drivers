@@ -54,7 +54,7 @@ static const struct of_device_id dsi_display_dt_match[] = {
 	{}
 };
 
-bool is_skip_op_required(struct dsi_display *display)
+static bool is_skip_op_required(struct dsi_display *display)
 {
 	if (!display)
 		return false;
@@ -937,7 +937,7 @@ static int dsi_display_status_check_te(struct dsi_display *display,
 	return rc;
 }
 
-void dsi_display_toggle_error_interrupt_status(struct dsi_display * display, bool enable)
+static void dsi_display_toggle_error_interrupt_status(struct dsi_display * display, bool enable)
 {
 	int i = 0;
 	struct dsi_display_ctrl *ctrl;
@@ -2816,7 +2816,7 @@ static int dsi_display_phy_pll_disable(struct dsi_display *display)
 	return dsi_phy_pll_toggle(m_ctrl->phy, false);
 }
 
-int dsi_display_phy_pll_toggle(void *priv, bool prepare)
+static int dsi_display_phy_pll_toggle(void *priv, bool prepare)
 {
 	struct dsi_display *display = priv;
 
@@ -2834,7 +2834,7 @@ int dsi_display_phy_pll_toggle(void *priv, bool prepare)
 		return dsi_display_phy_pll_disable(display);
 }
 
-int dsi_display_phy_configure(void *priv, bool commit)
+static int dsi_display_phy_configure(void *priv, bool commit)
 {
 	int rc = 0;
 	struct dsi_display *display = priv;
@@ -4474,7 +4474,7 @@ static bool dsi_display_is_seamless_dfps_possible(
 	return true;
 }
 
-void dsi_display_update_byte_intf_div(struct dsi_display *display)
+static void dsi_display_update_byte_intf_div(struct dsi_display *display)
 {
 	struct dsi_host_common_cfg *config;
 	struct dsi_display_ctrl *m_ctrl;
@@ -6894,7 +6894,7 @@ int dsi_display_get_mode_count(struct dsi_display *display,
 	return 0;
 }
 
-void dsi_display_adjust_mode_timing(struct dsi_display *display,
+static void dsi_display_adjust_mode_timing(struct dsi_display *display,
 			struct dsi_display_mode *dsi_mode,
 			int lanes, int bpp)
 {
@@ -7140,7 +7140,7 @@ void dsi_display_put_mode(struct dsi_display *display,
 	dsi_panel_put_mode(mode);
 }
 
-int dsi_display_get_modes_helper(struct dsi_display *display,
+static int dsi_display_get_modes_helper(struct dsi_display *display,
 	struct dsi_display_ctrl *ctrl, u32 timing_mode_count,
 	struct dsi_dfps_capabilities dfps_caps, struct dsi_qsync_capabilities *qsync_caps,
 	struct dsi_dyn_clk_caps *dyn_clk_caps, struct dsi_avr_capabilities *avr_caps)

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (c) 2020-2022, The Linux Foundation. All rights reserved.
  */
 
@@ -58,6 +58,9 @@
 #define DSC_CLK_CTRL               0x0C
 #define DSC_4HS_MERGE_EN           0x10
 #define DSC_4HS_MERGE_CFG          0x14
+
+void sde_dsc1_2_setup_ops(struct sde_hw_dsc_ops *ops,
+		const unsigned long features);
 
 static int _dsc_calc_ob_max_addr(struct sde_hw_dsc *hw_dsc, int num_ss)
 {
