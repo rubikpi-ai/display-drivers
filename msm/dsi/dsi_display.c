@@ -6039,6 +6039,7 @@ int dsi_display_dev_probe(struct platform_device *pdev)
 	int rc = 0, index = DSI_PRIMARY;
 	bool firm_req = false, ext_disp_en = false;
 	struct dsi_display_boot_param *boot_disp;
+	const char *display_bootargs;
 
 	if (!pdev || !pdev->dev.of_node) {
 		DSI_ERR("pdev not found\n");
@@ -6092,10 +6093,19 @@ int dsi_display_dev_probe(struct platform_device *pdev)
 			DSI_WARN("%s panel_node %s not found\n", display->display_type,
 					boot_disp->name);
 	} else {
-		panel_node = of_parse_phandle(node,
+		display_bootargs = of_get_property(of_find_node_by_path("/chosen"),
+					"display_bootargs", NULL);
+		DSI_ERR("-------display_bootargs=%s-----------\n",display_bootargs);
+
+		panel_node = of_find_node_by_name(mdp_node, display_bootargs);
+		if (!panel_node) {
+			DSI_ERR("%s boot panel not found\n", display_bootargs);
+
+			panel_node = of_parse_phandle(node,
 				"qcom,dsi-default-panel", 0);
-		if (!panel_node)
-			DSI_INFO("%s default panel not found\n", display->display_type);
+			if (!panel_node)
+				DSI_ERR("%s default panel not found\n", display->display_type);
+		}
 	}
 
 	boot_disp->node = pdev->dev.of_node;
