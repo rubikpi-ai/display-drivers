@@ -711,7 +711,7 @@ static int lt9611_pll_setup(struct lt9611 *lt9611)
 	}
 
 	pcr_m = (u8)((pclk * 5 * hdmi_post_div) / 27000);
-	pcr_m - -;
+	pcr_m --;
 	pcr_m_ex = pcr_m;
 
 	regmap_write(lt9611->regmap, 0x832d, 0x40); //M up limit
@@ -766,7 +766,6 @@ static void lt9611_pcr_setup(struct lt9611 *lt9611)
 	u8 POL;
 	struct drm_display_mode *mode = &lt9611->curr_mode;
 
-	hact = mode->hdisplay;
 	POL = ((mode->flags & DRM_MODE_FLAG_PHSYNC) ? 0x02 : 0x00) |
 			((mode->flags & DRM_MODE_FLAG_PVSYNC) ? 0x01 : 0x00);
 	POL = ~POL;
