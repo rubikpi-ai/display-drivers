@@ -139,6 +139,12 @@ static struct lt9611uxc_mode lt9611uxc_modes[] = {
 	{ 720,  858,  480,  525,  60 },
 };
 
+struct drm_display_mode default_mode = {
+	/* VIC 16 */
+	DRM_MODE("1920x1080", DRM_MODE_TYPE_DRIVER, 148500, 1920, 2008, 2052,
+			2200, 0, 1080, 1084, 1089, 1125, 0,
+			DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC) };
+
 #if !IS_ENABLED(CONFIG_CEC_CORE)
 static inline struct cec_adapter *cec_allocate_adapter(
 		const struct cec_adap_ops *ops, void *priv,
@@ -278,19 +284,19 @@ static struct lt9611uxc *lt9611uxc_audio_get_pdata(struct platform_device *pdev)
 	struct lt9611uxc *lt9611uxc;
 
 	if (!pdev) {
-		pr_err("Invalid pdev\n", __func__);
+		pr_err("%s:Invalid pdev\n", __func__);
 		return ERR_PTR(-ENODEV);
 	}
 
 	ext_data = platform_get_drvdata(pdev);
 	if (!ext_data) {
-		pr_err("Invalid ext disp data\n", __func__);
+		pr_err("%s:Invalid ext disp data\n", __func__);
 		return ERR_PTR(-EINVAL);
 	}
 
 	lt9611uxc = ext_data->intf_data;
 	if (!lt9611uxc) {
-		pr_err("Invalid intf data\n", __func__);
+		pr_err("%s:Invalid intf data\n", __func__);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -584,7 +590,8 @@ static int lt9611uxc_regulator_init(struct lt9611uxc *lt9611uxc)
 
 	ret = regulator_set_voltage(lt9611uxc->supplies[1].consumer, 3300000, 3500000);
 	if (ret) {
-		pr_err("%s:regulator set voltage failed %d", __func__, ret);
+		dev_err(lt9611uxc->dev, "%s:regulator set voltage failed %d\n",
+				__func__, ret);
 		return ret;
 	}
 
@@ -625,6 +632,23 @@ static struct lt9611uxc_mode *lt9611uxc_find_mode(const struct drm_display_mode 
 	}
 
 	return NULL;
+}
+
+static int lt9611uxc_add_default_mode(struct drm_connector *connector)
+{
+	struct lt9611uxc *lt9611uxc = connector_to_lt9611uxc(connector);
+	struct drm_display_mode *m, *mode = &default_mode;
+
+	m = drm_mode_duplicate(connector->dev, mode);
+	if (!m) {
+		dev_err(lt9611uxc->dev, "failed to create mode\n");
+		return -ENOMEM;
+	}
+	drm_mode_probed_add(connector, m);
+
+	dev_info(lt9611uxc->dev, "default mode %s@%d\n", mode->name,
+				drm_mode_vrefresh(mode));
+	return 0;
 }
 
 static struct mipi_dsi_device *lt9611uxc_attach_dsi(struct lt9611uxc *lt9611uxc,
@@ -703,8 +727,13 @@ static void lt9611uxc_choose_best_mode(struct drm_connector *connector)
 static void lt9611uxc_set_preferred_mode(struct drm_connector *connector)
 {
 	struct lt9611uxc *lt9611uxc = connector_to_lt9611uxc(connector);
-	struct drm_display_mode *mode, *last_mode;
+	struct drm_display_mode *mode;
 	const char *string;
+
+	if (list_empty(&connector->probed_modes)) {
+		dev_info(lt9611uxc->dev, "no modes present, add default mode");
+		lt9611uxc_add_default_mode(&lt9611uxc->connector);
+	}
 
 	if (lt9611uxc->fix_mode) {
 		list_for_each_entry(mode, &connector->probed_modes, head) {
@@ -728,7 +757,7 @@ static void lt9611uxc_set_preferred_mode(struct drm_connector *connector)
 		} else if (lt9611uxc->edid)
 			lt9611uxc_choose_best_mode(connector);
 		else
-			pr_err("EDID is NULL \n");
+			dev_err(lt9611uxc->dev, "%s:EDID is NULL\n", __func__);
 	}
 }
 
@@ -904,19 +933,23 @@ static void lt9611uxc_video_setup(struct lt9611uxc *lt9611uxc,
 static void lt9611uxc_bridge_enable(struct drm_bridge *bridge)
 {
 	struct lt9611uxc *lt9611uxc;
+	struct device *dev;
 	int rc;
 
 	if (!bridge)
 		return;
 
-	pr_info("bridge enable\n");
-
 	lt9611uxc = bridge_to_lt9611uxc(bridge);
+	dev = lt9611uxc->dev;
+
+	dev_info(dev, "bridge enable\n");
+
 	if (lt9611uxc->audio_support) {
-		pr_info("notify audio(%d)\n", EXT_DISPLAY_CABLE_CONNECT);
+		dev_info(dev, "notify audio(%d)\n", EXT_DISPLAY_CABLE_CONNECT);
 		rc = hdmi_audio_register_ext_disp(lt9611uxc);
 		if (rc) {
-			pr_err("hdmi audio register failed. rc=%d\n", rc);
+			dev_err(dev, "%s:hdmi audio register failed. rc=%d\n",
+				__func__, rc);
 			return;
 		}
 		lt9611uxc->ext_audio_data.intf_ops.audio_config(lt9611uxc->ext_pdev,
@@ -1018,6 +1051,9 @@ static int lt9611uxc_get_edid_block(void *data, u8 *buf, unsigned int block, siz
 	if (ret)
 		dev_err(lt9611uxc->dev, "edid read failed: %d\n", ret);
 
+	print_hex_dump_debug("EDID: ", DUMP_PREFIX_NONE, 16, 1, buf, len,
+			false);
+
 	lt9611uxc_unlock(lt9611uxc);
 
 	return 0;
@@ -1035,6 +1071,10 @@ static struct edid *lt9611uxc_bridge_get_edid(struct drm_bridge *bridge,
 		return NULL;
 	} else if (ret == 0) {
 		dev_err(lt9611uxc->dev, "wait for EDID timeout\n");
+
+		if (lt9611uxc->hdmi_connected)
+			lt9611uxc_add_default_mode(&lt9611uxc->connector);
+
 		return NULL;
 	}
 
@@ -1109,20 +1149,23 @@ static int lt9611uxc_read_device_rev(struct lt9611uxc *lt9611uxc)
 
 static int lt9611uxc_read_version(struct lt9611uxc *lt9611uxc)
 {
-	unsigned int rev;
+	unsigned int rev0, rev1;
 	int ret;
 
 	lt9611uxc_lock(lt9611uxc);
 
-	ret = regmap_read(lt9611uxc->regmap, 0xb021, &rev);
+	ret = regmap_read(lt9611uxc->regmap, 0xb021, &rev0);
+	ret |= regmap_read(lt9611uxc->regmap, 0xb020, &rev1);
 	if (ret)
-		dev_err(lt9611uxc->dev, "failed to read revision: %d\n", ret);
+		dev_err(lt9611uxc->dev,
+			"failed to read LT9611uxc FW version: %d\n", ret);
 	else
-		dev_info(lt9611uxc->dev, "LT9611 version: 0x%02x\n", rev);
+		dev_info(lt9611uxc->dev, "LT9611uxc FW version: 0x%02x.%02x\n",
+			rev0, rev1);
 
 	lt9611uxc_unlock(lt9611uxc);
 
-	return ret < 0 ? ret : rev;
+	return ret < 0 ? ret : rev0;
 }
 
 int lt9611_read_cec_msg(struct lt9611uxc *lt9611uxc, struct cec_msg *msg)

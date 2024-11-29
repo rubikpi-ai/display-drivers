@@ -90,6 +90,8 @@
 		} while ((!cond) && (ret == 0) &&			\
 			(ktime_compare_safe(exp_ktime, cur_ktime) > 0));\
 	} while (0)
+int msm_ioctl_rmfb2(struct drm_device *dev, void *data,
+		    struct drm_file *file_priv);
 
 static DEFINE_MUTEX(msm_release_lock);
 
@@ -144,7 +146,7 @@ static void msm_drm_display_thread_priority_worker(struct kthread_work *work)
  * RETURNS
  * Zero for success or -errorno.
  */
-int msm_atomic_check(struct drm_device *dev,
+static int msm_atomic_check(struct drm_device *dev,
 			    struct drm_atomic_state *state)
 {
 	struct msm_drm_private *priv;
@@ -1681,7 +1683,7 @@ EXPORT_SYMBOL_GPL(msm_ioctl_rmfb2);
  * @file_priv: drm file for the ioctl call
  *
  */
-int msm_ioctl_power_ctrl(struct drm_device *dev, void *data,
+static int msm_ioctl_power_ctrl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv)
 {
 	struct msm_file_private *ctx = file_priv->driver_priv;
@@ -1741,7 +1743,7 @@ int msm_ioctl_power_ctrl(struct drm_device *dev, void *data,
  * @file_priv: drm file for the ioctl call
  *
  */
-int msm_ioctl_display_hint_ops(struct drm_device *dev, void *data,
+static int msm_ioctl_display_hint_ops(struct drm_device *dev, void *data,
 			struct drm_file *file_priv)
 {
 	struct drm_msm_display_hint *display_hint = data;

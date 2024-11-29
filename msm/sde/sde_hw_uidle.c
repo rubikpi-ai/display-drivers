@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2022, 2024 Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
  *
  */
@@ -67,7 +67,7 @@ static const struct sde_uidle_cfg *_top_offset(enum sde_uidle uidle,
 	return ERR_PTR(-EINVAL);
 }
 
-void sde_hw_uidle_get_status(struct sde_hw_uidle *uidle,
+static void sde_hw_uidle_get_status(struct sde_hw_uidle *uidle,
 		struct sde_uidle_status *status)
 {
 	struct sde_hw_blk_reg_map *c = &uidle->hw;
@@ -95,7 +95,7 @@ void sde_hw_uidle_get_status(struct sde_hw_uidle *uidle,
 		(status->uidle_status & BIT(2)) ? 1 : 0;
 }
 
-void sde_hw_uidle_get_cntr(struct sde_hw_uidle *uidle,
+static void sde_hw_uidle_get_cntr(struct sde_hw_uidle *uidle,
 		struct sde_uidle_cntr *cntr)
 {
 	struct sde_hw_blk_reg_map *c = &uidle->hw;
@@ -124,7 +124,7 @@ void sde_hw_uidle_get_cntr(struct sde_hw_uidle *uidle,
 	SDE_REG_WRITE(c, UIDLE_GATE_CNTR_CTL, reg_val);
 }
 
-void sde_hw_uidle_setup_cntr(struct sde_hw_uidle *uidle, bool enable)
+static void sde_hw_uidle_setup_cntr(struct sde_hw_uidle *uidle, bool enable)
 {
 	struct sde_hw_blk_reg_map *c = &uidle->hw;
 	u32 reg_val;
@@ -135,7 +135,7 @@ void sde_hw_uidle_setup_cntr(struct sde_hw_uidle *uidle, bool enable)
 	SDE_REG_WRITE(c, UIDLE_GATE_CNTR_CTL, reg_val);
 }
 
-void sde_hw_uidle_setup_wd_timer(struct sde_hw_uidle *uidle,
+static void sde_hw_uidle_setup_wd_timer(struct sde_hw_uidle *uidle,
 		struct sde_uidle_wd_cfg *cfg)
 {
 	struct sde_hw_blk_reg_map *c = &uidle->hw;
@@ -159,7 +159,7 @@ void sde_hw_uidle_setup_wd_timer(struct sde_hw_uidle *uidle,
 	SDE_REG_WRITE(c, UIDLE_WD_TIMER_LOAD_VALUE, val_ld);
 }
 
-void sde_hw_uidle_setup_ctl(struct sde_hw_uidle *uidle,
+static void sde_hw_uidle_setup_ctl(struct sde_hw_uidle *uidle,
 		struct sde_uidle_ctl_cfg *cfg)
 {
 	struct sde_hw_blk_reg_map *c = &uidle->hw;

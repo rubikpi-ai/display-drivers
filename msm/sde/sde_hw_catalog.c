@@ -2232,6 +2232,50 @@ u32 sde_hw_mixer_set_preference(struct sde_mdss_cfg *sde_cfg, u32 num_lm,
 	return lm_mask;
 }
 
+u64 sde_get_ddr_type(void)
+{
+	u64 ret = -EINVAL;
+	u64 ddr_type;
+	struct device_node *root_node = NULL;
+	struct device_node *mem_node = NULL;
+
+	root_node = of_find_node_by_path("/");
+
+	if (root_node == NULL) {
+		SDE_ERROR("Unable to find root node");
+		goto error;
+	}
+
+	do {
+		mem_node = of_get_next_child(root_node, mem_node);
+		if (of_node_name_prefix(mem_node, "memory")) {
+			SDE_DEBUG("memory node found with full name %s",
+					mem_node->full_name);
+			break;
+		}
+	} while (mem_node != NULL);
+
+	of_node_put(root_node);
+	if (mem_node == NULL) {
+		SDE_ERROR("memory node not found");
+		goto error;
+	}
+
+	ret = of_property_read_u64(mem_node, "ddr_device_type", &ddr_type);
+
+	of_node_put(mem_node);
+	if (ret < 0) {
+		SDE_ERROR("ddr_device_type read failed");
+		goto error;
+	}
+
+	SDE_DEBUG("DDR Type %lld", ddr_type);
+	return ddr_type;
+error:
+	return ret;
+
+}
+
 static int sde_mixer_parse_dt(struct device_node *np, struct sde_mdss_cfg *sde_cfg)
 {
 	int rc = 0, i, j;
@@ -4099,7 +4143,7 @@ static void _sde_top_parse_dt_helper(struct sde_mdss_cfg *cfg,
 	struct sde_dt_props *props)
 {
 	int i;
-	u32 ddr_type;
+	u64 ddr_type;
 
 	cfg->max_sspp_linewidth = props->exists[SSPP_LINEWIDTH] ?
 			PROP_VALUE_ACCESS(props->values, SSPP_LINEWIDTH, 0) :
@@ -4140,7 +4184,7 @@ static void _sde_top_parse_dt_helper(struct sde_mdss_cfg *cfg,
 		for (i = 0; i < props->counts[BANK_BIT]; i++) {
 			ddr_type = PROP_BITVALUE_ACCESS(props->values,
 					BANK_BIT, i, 0);
-			if (!ddr_type || (of_fdt_get_ddrtype() == ddr_type))
+			if (!ddr_type || (sde_get_ddr_type() == ddr_type))
 				cfg->mdp[0].highest_bank_bit =
 					PROP_BITVALUE_ACCESS(props->values,
 					BANK_BIT, i, 1);

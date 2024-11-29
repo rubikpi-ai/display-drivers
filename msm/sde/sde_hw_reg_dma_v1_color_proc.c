@@ -1697,7 +1697,7 @@ static void _dspp_pcc_common_off(struct sde_hw_dspp *ctx, void *cfg)
 		DRM_ERROR("failed to kick off ret %d\n", rc);
 }
 
-void reg_dmav1_setup_dspp_pcc_common(struct sde_hw_dspp *ctx, void *cfg)
+static void reg_dmav1_setup_dspp_pcc_common(struct sde_hw_dspp *ctx, void *cfg)
 {
 	struct sde_hw_reg_dma_ops *dma_ops;
 	struct sde_reg_dma_kickoff_cfg kick_off;
@@ -5312,7 +5312,7 @@ int reg_dmav2_init_spr_op_v1(int feature, enum sde_dspp dspp_idx)
 	return rc;
 }
 
-int reg_dmav1_setup_spr_cfg3_params(struct sde_hw_dspp *ctx,
+static int reg_dmav1_setup_spr_cfg3_params(struct sde_hw_dspp *ctx,
 		struct drm_msm_spr_init_cfg *payload,
 		struct sde_reg_dma_setup_ops_cfg *dma_write_cfg,
 		struct sde_hw_reg_dma_ops *dma_ops)
@@ -5359,7 +5359,7 @@ int reg_dmav1_setup_spr_cfg3_params(struct sde_hw_dspp *ctx,
 	return rc;
 }
 
-int reg_dmav1_setup_spr_cfg4_params(struct sde_hw_dspp *ctx,
+static int reg_dmav1_setup_spr_cfg4_params(struct sde_hw_dspp *ctx,
 		struct drm_msm_spr_init_cfg *payload,
 		struct sde_reg_dma_setup_ops_cfg *dma_write_cfg,
 		struct sde_hw_reg_dma_ops *dma_ops)
@@ -5391,7 +5391,7 @@ int reg_dmav1_setup_spr_cfg4_params(struct sde_hw_dspp *ctx,
 	return rc;
 }
 
-int reg_dmav1_setup_spr_cfg5_params(struct sde_hw_dspp *ctx,
+static int reg_dmav1_setup_spr_cfg5_params(struct sde_hw_dspp *ctx,
 		struct drm_msm_spr_init_cfg *payload,
 		struct sde_reg_dma_setup_ops_cfg *dma_write_cfg,
 		struct sde_hw_reg_dma_ops *dma_ops)
@@ -5435,7 +5435,7 @@ int reg_dmav1_setup_spr_cfg5_params(struct sde_hw_dspp *ctx,
 	return rc;
 }
 
-void reg_dmav1_disable_spr(struct sde_hw_dspp *ctx, void *cfg)
+static void reg_dmav1_disable_spr(struct sde_hw_dspp *ctx, void *cfg)
 {
 	struct sde_reg_dma_setup_ops_cfg dma_write_cfg;
 	struct sde_hw_cp_cfg *hw_cfg = cfg;
@@ -5478,7 +5478,7 @@ void reg_dmav1_disable_spr(struct sde_hw_dspp *ctx, void *cfg)
 	ctx->spr_cfg_18_default = 0;
 }
 
-int reg_dmav1_setup_spr_init_common(struct sde_hw_dspp *ctx,
+static int reg_dmav1_setup_spr_init_common(struct sde_hw_dspp *ctx,
 		struct drm_msm_spr_init_cfg *payload,
 		struct sde_reg_dma_setup_ops_cfg *dma_write_cfg,
 		struct sde_hw_reg_dma_ops *dma_ops)
@@ -5536,7 +5536,7 @@ int reg_dmav1_setup_spr_init_common(struct sde_hw_dspp *ctx,
 	return rc;
 }
 
-int reg_dmav1_get_spr_target(struct sde_hw_dspp *ctx, void *cfg,
+static int reg_dmav1_get_spr_target(struct sde_hw_dspp *ctx, void *cfg,
 		struct sde_hw_reg_dma_ops **dma_ops, uint32_t *base_off,
 		struct sde_reg_dma_buffer **buffer, bool *disable)
 {
@@ -5566,7 +5566,7 @@ int reg_dmav1_get_spr_target(struct sde_hw_dspp *ctx, void *cfg,
 	return rc;
 }
 
-int reg_dmav1_setup_spr_init_kickoff(uint32_t version, uint32_t base_off,
+static int reg_dmav1_setup_spr_init_kickoff(uint32_t version, uint32_t base_off,
 		struct sde_hw_reg_dma_ops *dma_ops,
 		struct sde_hw_cp_cfg *hw_cfg,
 		struct drm_msm_spr_init_cfg *payload,
@@ -5884,7 +5884,7 @@ cleanup:
 	kvfree(reg);
 }
 
-int reg_dmav1_setup_spr_pu_common(struct sde_hw_dspp *ctx, struct sde_hw_cp_cfg *hw_cfg,
+static int reg_dmav1_setup_spr_pu_common(struct sde_hw_dspp *ctx, struct sde_hw_cp_cfg *hw_cfg,
 		struct msm_roi_list *roi_list,
 		struct sde_hw_reg_dma_ops *dma_ops, struct sde_reg_dma_buffer *buffer)
 {

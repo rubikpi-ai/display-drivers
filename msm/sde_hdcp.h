@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2012, 2014-2020, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022, 2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef __SDE_HDCP_H__
@@ -122,30 +122,30 @@ void *sde_dp_hdcp2p2_init(struct sde_hdcp_init_data *init_data);
 void sde_dp_hdcp2p2_deinit(void *input);
 struct sde_hdcp_ops *sde_dp_hdcp2p2_get(void *input);
 #else
-void *sde_hdcp_1x_init(struct sde_hdcp_init_data *init_data)
+static void *sde_hdcp_1x_init(struct sde_hdcp_init_data *init_data)
 {
 	return NULL;
 }
 
-void sde_hdcp_1x_deinit(void *input)
+static void sde_hdcp_1x_deinit(void *input)
 {
 }
 
-struct sde_hdcp_ops *sde_hdcp_1x_get(void *input)
-{
-	return NULL;
-}
-
-void *sde_dp_hdcp2p2_init(struct sde_hdcp_init_data *init_data)
+static struct sde_hdcp_ops *sde_hdcp_1x_get(void *input)
 {
 	return NULL;
 }
 
-void sde_dp_hdcp2p2_deinit(void *input)
+static void *sde_dp_hdcp2p2_init(struct sde_hdcp_init_data *init_data)
+{
+	return NULL;
+}
+
+static void sde_dp_hdcp2p2_deinit(void *input)
 {
 }
 
-struct sde_hdcp_ops *sde_dp_hdcp2p2_get(void *input)
+static struct sde_hdcp_ops *sde_dp_hdcp2p2_get(void *input)
 {
 	return NULL;
 }

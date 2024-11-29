@@ -2787,7 +2787,7 @@ static void _sde_rm_populate_dp_lm_mask(struct sde_rm *rm,
 }
 
 /* call this only after rm_mutex held */
-struct sde_rm_rsvp *_sde_rm_poll_get_rsvp_nxt_locked(struct sde_rm *rm,
+static struct sde_rm_rsvp *_sde_rm_poll_get_rsvp_nxt_locked(struct sde_rm *rm,
 		struct drm_encoder *enc)
 {
 	int i;

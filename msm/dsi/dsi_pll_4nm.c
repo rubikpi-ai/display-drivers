@@ -11,6 +11,7 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include "dsi_pll_4nm.h"
+#include "dsi_catalog.h"
 
 #define VCO_DELAY_USEC 1
 
@@ -1478,7 +1479,7 @@ static int dsi_pll_4nm_disable(struct dsi_pll_resource *rsc)
 	return rc;
 }
 
-void dsi_pll_assert_pll_reset(struct dsi_pll_resource *rsc)
+static void dsi_pll_assert_pll_reset(struct dsi_pll_resource *rsc)
 {
 	u32 data = 0;
 
@@ -1493,7 +1494,7 @@ void dsi_pll_assert_pll_reset(struct dsi_pll_resource *rsc)
 	wmb();
 }
 
-void dsi_pll_4nm_trigger_resets_pre_enable(struct dsi_pll_resource *rsc)
+static void dsi_pll_4nm_trigger_resets_pre_enable(struct dsi_pll_resource *rsc)
 {
 	/*
 	 * Assert power on reset on DSI PHY Analog immeditately

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (c) 2015-2021, The Linux Foundation. All rights reserved.
  */
 
@@ -369,7 +369,7 @@ static void sde_hw_setup_vsync_source_v1(struct sde_hw_mdp *mdp,
 	_update_vsync_source(mdp, cfg);
 }
 
-void sde_hw_reset_ubwc(struct sde_hw_mdp *mdp, struct sde_mdss_cfg *m)
+static void sde_hw_reset_ubwc(struct sde_hw_mdp *mdp, struct sde_mdss_cfg *m)
 {
 	struct sde_hw_blk_reg_map c;
 	u32 ubwc_dec_version;
@@ -450,7 +450,7 @@ static void sde_hw_mdp_events(struct sde_hw_mdp *mdp, bool enable)
 	SDE_REG_WRITE(c, HW_EVENTS_CTL, enable);
 }
 
-void sde_hw_set_vm_sid_v2(struct sde_hw_sid *sid, u32 vm, struct sde_mdss_cfg *m)
+static void sde_hw_set_vm_sid_v2(struct sde_hw_sid *sid, u32 vm, struct sde_mdss_cfg *m)
 {
 	u32 offset = 0;
 	int i;
@@ -483,7 +483,7 @@ void sde_hw_set_vm_sid_v2(struct sde_hw_sid *sid, u32 vm, struct sde_mdss_cfg *m
 	SDE_REG_WRITE(&sid->hw, MDP_SID_V2_DSI1, vm << 2);
 }
 
-void sde_hw_set_vm_sid(struct sde_hw_sid *sid, u32 vm, struct sde_mdss_cfg *m)
+static void sde_hw_set_vm_sid(struct sde_hw_sid *sid, u32 vm, struct sde_mdss_cfg *m)
 {
 	if (!sid || !m)
 		return;
@@ -790,7 +790,7 @@ static void sde_hw_setup_hw_fences_config(struct sde_hw_mdp *mdp, u32 protocol_i
 	SDE_REG_WRITE(&c, offset, val);
 }
 
-void sde_hw_top_set_ppb_fifo_size(struct sde_hw_mdp *mdp, u32 pp, u32 sz)
+static void sde_hw_top_set_ppb_fifo_size(struct sde_hw_mdp *mdp, u32 pp, u32 sz)
 {
 	struct sde_hw_blk_reg_map c;
 	u32 offset, val, pp_index;
@@ -989,8 +989,13 @@ struct sde_hw_mdp *sde_hw_mdptop_init(enum sde_mdp idx,
 				mdp->hw.blk_off +  mdp->hw.length, mdp->hw.xin_id);
 
 		/* do not use blk_off, following offsets start from  mdp_phys */
-		sde_dbg_reg_register_dump_range(SDE_DBG_NAME, "hw_fence", MDP_CTL_HW_FENCE_CTRL,
-			MDP_CTL_HW_FENCE_ID_OFFSET_m(MDP_CTL_HW_FENCE_IDm_ATTR, 5), mdp->hw.xin_id);
+		if (m->hw_fence_rev) {
+			sde_dbg_reg_register_dump_range(SDE_DBG_NAME, "hw_fence",
+				MDP_CTL_HW_FENCE_CTRL,
+				MDP_CTL_HW_FENCE_ID_OFFSET_m(MDP_CTL_HW_FENCE_IDm_ATTR, 5),
+				mdp->hw.xin_id);
+		}
+
 	} else {
 		sde_dbg_reg_register_dump_range(SDE_DBG_NAME, cfg->name,
 			mdp->hw.blk_off, mdp->hw.blk_off + mdp->hw.length,
