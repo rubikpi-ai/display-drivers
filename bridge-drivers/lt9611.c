@@ -34,6 +34,23 @@
 #include <media/cec-notifier.h>
 
 #include <linux/soc/qcom/msm_ext_display.h>
+#include <net/netlink.h>
+
+struct sock *nlsk = NULL;
+extern struct net init_net;
+#define NETLINK_TEST 30
+
+typedef enum  {
+	LT9611_DISCONNECT = 0,
+	LT9611_CONNECTION = 1,
+} lt9611_connection_status;
+
+const char *const lt9611_status_string[] = {
+	[LT9611_DISCONNECT] = "Hdmi Disconnect",
+	[LT9611_CONNECTION] = "Hdmi Connection",
+};
+
+static int detect;
 
 #define EDID_BLOCK_SIZE	128
 #define EDID_NUM_BLOCKS	2
@@ -1546,6 +1563,39 @@ static void lt9611_bridge_mode_set(struct drm_bridge *bridge,
 	drm_mode_copy(&lt9611->curr_mode, mode);
 }
 
+static void lt9611_device_connect_status_notify(lt9611_connection_status status)
+{
+	const char *ptr = lt9611_status_string[status];
+	int len = strlen(ptr) + 1;
+	struct sk_buff *nl_skb;
+	struct nlmsghdr *nlh;
+	int ret;
+
+	if (!nlsk) {
+		pr_err("%s: nlsk is NULL\n", __func__);
+		return;
+	}
+
+	nl_skb = nlmsg_new(len, GFP_ATOMIC);
+	if (!nl_skb) {
+		pr_err("%s: netlink alloc failure\n", __func__);
+		return;
+	}
+
+	nlh = nlmsg_put(nl_skb, 0, 0, NETLINK_TEST, len, 0);
+	if (!nlh) {
+		pr_err("%s: nlmsg_put failaure\n", __func__);
+		nlmsg_free(nl_skb);
+		return;
+	}
+
+	memcpy(nlmsg_data(nlh), ptr, len);
+	ret = netlink_unicast(nlsk, nl_skb, 200, MSG_DONTWAIT);
+	pr_info("%s: send msg[%s] ret[%d]\n", __func__, ptr, ret);
+
+	return;
+}
+
 static enum drm_connector_status lt9611_bridge_detect(struct drm_bridge *bridge)
 {
 	struct lt9611 *lt9611 = bridge_to_lt9611(bridge);
@@ -1569,8 +1619,12 @@ static enum drm_connector_status lt9611_bridge_detect(struct drm_bridge *bridge)
 		dev_info(lt9611->dev, "success to read hpd status: %d\n", reg_val);
 		if ((reg_val & 0x04) == 0x04) {
 			connected  = true;
+			detect = 1;
+			lt9611_device_connect_status_notify(LT9611_CONNECTION);
 		} else {
 			connected  = false;
+			detect = 0;
+			lt9611_device_connect_status_notify(LT9611_DISCONNECT);
 			lt9611_on(lt9611, true);
 		}
 	}
@@ -2132,12 +2186,20 @@ static ssize_t send_cec_msg_store(struct device *dev,
 	return count;
 }
 
+static ssize_t detect_info_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	return snprintf(buf, 4, "%d\n", detect);
+}
+
 static DEVICE_ATTR_RW(edid_mode);
 static DEVICE_ATTR_WO(send_cec_msg);
+static DEVICE_ATTR_RO(detect_info);
 
 static struct attribute *lt9611_attrs[] = {
 	&dev_attr_edid_mode.attr,
 	&dev_attr_send_cec_msg.attr,
+	&dev_attr_detect_info.attr,
 	NULL,
 };
 
@@ -2236,6 +2298,11 @@ static int lt9611_probe(struct i2c_client *client)
 	lt9611->bridge.type = DRM_MODE_CONNECTOR_HDMIA;
 
 	drm_bridge_add(&lt9611->bridge);
+
+	nlsk = netlink_kernel_create(&init_net, NETLINK_TEST, NULL);
+	if (!nlsk) {
+		pr_err("%s: netlink_kernel_create error !\n", __func__);
+	}
 
 	return lt9611_audio_init(dev, lt9611);
 
