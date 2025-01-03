@@ -1266,6 +1266,21 @@ static void dp_ctrl_dsc_setup(struct dp_ctrl_private *ctrl, struct dp_panel *pan
 		DP_WARN("failed to enable sink dsc\n");
 }
 
+static int dp_ctrl_link_retrain(struct dp_ctrl_private *ctrl)
+{
+	return dp_ctrl_setup_main_link(ctrl);
+}
+
+static bool dp_ctrl_channel_eq_ok(struct dp_ctrl_private *ctrl)
+{
+	u8 link_status[DP_LINK_STATUS_SIZE];
+	int num_lanes = ctrl->link->link_params.lane_count;
+
+	dp_ctrl_read_link_status(ctrl, link_status);
+
+	return drm_dp_channel_eq_ok(link_status, num_lanes);
+}
+
 static int dp_ctrl_stream_on(struct dp_ctrl *dp_ctrl, struct dp_panel *panel)
 {
 	int rc = 0;
@@ -1287,6 +1302,9 @@ static int dp_ctrl_stream_on(struct dp_ctrl *dp_ctrl, struct dp_panel *panel)
 		DP_ERR("failure on stream clock enable\n");
 		return rc;
 	}
+
+	if (!dp_ctrl_channel_eq_ok(ctrl))
+		dp_ctrl_link_retrain(ctrl);
 
 	panel->pclk_on = true;
 	rc = panel->hw_cfg(panel, true);
