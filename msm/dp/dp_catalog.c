@@ -2090,6 +2090,12 @@ static void dp_catalog_ctrl_fec_config(struct dp_catalog_ctrl *ctrl,
 	}
 
 	catalog = dp_catalog_get_priv(ctrl);
+
+	if (!io_data) {
+		DP_ERR("no link\n");
+		return;
+	}
+
 	io_data = catalog->io.dp_link;
 
 	reg = dp_read(DP_MAINLINK_CTRL);
