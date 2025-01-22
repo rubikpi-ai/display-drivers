@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
  */
 
@@ -2199,6 +2199,7 @@ int sde_connector_get_panel_vfp(struct drm_connector *connector,
 	struct drm_display_mode *mode)
 {
 	struct sde_connector *c_conn;
+	struct dsi_display *display;
 	int vfp = -EINVAL;
 
 	if (!connector || !mode) {
@@ -2207,6 +2208,10 @@ int sde_connector_get_panel_vfp(struct drm_connector *connector,
 	}
 	c_conn = to_sde_connector(connector);
 	if (!c_conn->ops.get_panel_vfp)
+		return vfp;
+
+	display = (struct dsi_display *)c_conn->display;
+	if (!display->panel->num_display_modes)
 		return vfp;
 
 	vfp = c_conn->ops.get_panel_vfp(c_conn->display,
