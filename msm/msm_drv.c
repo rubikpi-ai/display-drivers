@@ -909,7 +909,7 @@ static int msm_drm_component_init(struct device *dev)
 	if (ret)
 		goto mdss_init_fail;
 
-	priv->wq = alloc_ordered_workqueue("msm_drm", 0);
+	priv->wq = alloc_ordered_workqueue("msm", 0);
 	init_waitqueue_head(&priv->pending_crtcs_event);
 
 	INIT_LIST_HEAD(&priv->client_event_list);
@@ -1882,7 +1882,7 @@ static struct drm_driver msm_driver = {
 	.ioctls             = msm_ioctls,
 	.num_ioctls         = ARRAY_SIZE(msm_ioctls),
 	.fops               = &fops,
-	.name               = "msm_drm",
+	.name               = "msm",
 	.desc               = "MSM Snapdragon DRM",
 	.date               = "20130625",
 	.major              = MSM_VERSION_MAJOR,

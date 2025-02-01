@@ -5,7 +5,7 @@
  */
 
 /*
- * Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/firmware.h>
@@ -1168,7 +1168,7 @@ static int lt9611uxc_read_version(struct lt9611uxc *lt9611uxc)
 	return ret < 0 ? ret : rev0;
 }
 
-int lt9611_read_cec_msg(struct lt9611uxc *lt9611uxc, struct cec_msg *msg)
+static int lt9611_read_cec_msg(struct lt9611uxc *lt9611uxc, struct cec_msg *msg)
 {
 	unsigned int cec_val, cec_len, i;
 	unsigned int reg_cec_flag;
@@ -1194,7 +1194,7 @@ int lt9611_read_cec_msg(struct lt9611uxc *lt9611uxc, struct cec_msg *msg)
 	return 0;
 }
 
-void lt9611uxc_cec_transmit_work(struct work_struct *work)
+static void lt9611uxc_cec_transmit_work(struct work_struct *work)
 {
 	struct lt9611uxc *lt9611uxc = container_of(work, struct lt9611uxc,
 					cec_transmit_work);
@@ -1208,7 +1208,7 @@ void lt9611uxc_cec_transmit_work(struct work_struct *work)
 }
 
 
-void lt9611uxc_cec_recv_work(struct work_struct *work)
+static void lt9611uxc_cec_recv_work(struct work_struct *work)
 {
 	struct lt9611uxc *lt9611uxc = container_of(work, struct lt9611uxc, cec_recv_work);
 	struct cec_msg cec_msg = {};
