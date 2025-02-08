@@ -1089,12 +1089,11 @@ static void dp_catalog_ctrl_state_ctrl(struct dp_catalog_ctrl *ctrl, u32 state)
 
 	catalog = dp_catalog_get_priv(ctrl);
 
+	io_data = catalog->io.dp_link;
 	if (!io_data) {
 		DP_ERR("no link\n");
 		return;
 	}
-
-	io_data = catalog->io.dp_link;
 
 	dp_write(DP_STATE_CTRL, state);
 	/* make sure to change the hw state */
