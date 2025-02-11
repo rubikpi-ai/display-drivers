@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2021-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2025, Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (c) 2016-2019, The Linux Foundation. All rights reserved.
  */
 
@@ -221,6 +221,7 @@ struct dp_hpd *dp_gpio_hpd_get(struct device *dev,
 	struct dp_gpio_hpd_private *gpio_hpd;
 	struct dp_pinctrl pinctrl = {0};
 	unsigned int gpio;
+	u8 multi_func_params[2] = {0};
 
 	if (!dev || !cb) {
 		DP_ERR("invalid device\n");
@@ -276,6 +277,15 @@ struct dp_hpd *dp_gpio_hpd_get(struct device *dev,
 	gpio_hpd->base.simulate_connect = dp_gpio_hpd_simulate_connect;
 	gpio_hpd->base.simulate_attention = dp_gpio_hpd_simulate_attention;
 	gpio_hpd->base.register_hpd = dp_gpio_hpd_register;
+
+	rc = of_property_read_u8_array(dev->of_node, "qcom,multi_func_params",
+			multi_func_params, 2);
+	if (rc) {
+		DP_DEBUG("failed to read multi_func_params\n");
+	} else {
+		gpio_hpd->base.force_multi_func = multi_func_params[0];
+		gpio_hpd->base.flip_lanes = multi_func_params[1];
+	}
 
 	return &gpio_hpd->base;
 
