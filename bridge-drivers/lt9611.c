@@ -35,6 +35,7 @@
 
 #include <linux/soc/qcom/msm_ext_display.h>
 #include <net/netlink.h>
+#include "lt9611.h"
 
 struct sock *nlsk = NULL;
 extern struct net init_net;
@@ -82,6 +83,14 @@ enum lt9611_aspect_ratio_type {
 	RATIO_16_10,
 	RATIO_64_27,
 	RATIO_256_135,
+};
+
+struct lt9611_mode {
+	u16 hdisplay;
+	u16 htotal;
+	u16 vdisplay;
+	u16 vtotal;
+	u8 vrefresh;
 };
 
 struct lt9611 {
@@ -148,6 +157,8 @@ struct lt9611 {
 	/* Dynamic Mode Switch support */
 	struct drm_display_mode curr_mode;
 	u8 edid_buf[256];
+	bool fix_mode;
+	struct lt9611_mode debug_mode;
 };
 
 #define LT9611_PAGE_CONTROL	0xff
@@ -1224,6 +1235,27 @@ static int lt9611_regulator_enable(struct lt9611 *lt9611)
 	return 0;
 }
 
+static int lt9611_add_default_mode(struct drm_connector *connector, struct drm_display_mode *mode)
+{
+	struct lt9611 *lt9611 = connector_to_lt9611(connector);
+	struct drm_display_mode *m;
+
+	m = drm_mode_duplicate(connector->dev, mode);
+	if (!m) {
+		dev_err(lt9611->dev, "failed to set preferred mode:%s@%d\n",
+				mode->name, drm_mode_vrefresh(mode));
+		return -ENOMEM;
+	}
+
+	m->type &= ~DRM_MODE_TYPE_PREFERRED;
+	m->type |= DRM_MODE_TYPE_PREFERRED;
+	drm_mode_probed_add(connector, m);
+
+	dev_info(lt9611->dev, "Set  preferred mode %s@%d\n", mode->name,
+				drm_mode_vrefresh(mode));
+	return 0;
+}
+
 static struct mipi_dsi_device *lt9611_attach_dsi(struct lt9611 *lt9611,
 						    struct device_node *dsi_node)
 {
@@ -1259,44 +1291,52 @@ static struct mipi_dsi_device *lt9611_attach_dsi(struct lt9611 *lt9611,
 	return dsi;
 }
 
-#define MODE_SIZE(m) ((m)->hdisplay * (m)->vdisplay)
-#define MODE_REFRESH_DIFF(c, t) (abs((c) - (t)))
-
-static void lt9611_choose_best_mode(struct drm_connector *connector)
+static void lt9611_set_preferred_mode(struct drm_connector *connector)
 {
-	struct drm_display_mode *t, *cur_mode, *preferred_mode;
-	int cur_vrefresh, preferred_vrefresh;
-	int target_refresh = 60;
+	struct lt9611 *lt9611 = connector_to_lt9611(connector);
+	struct drm_display_mode *mode;
+	const char *string;
+	u16 vdisplay, hdisplay, vrefresh;
+	char new_string[32];
+	bool preferred_mode_set = false;
 
 	if (list_empty(&connector->probed_modes)) {
-		return;
+		dev_err(lt9611->dev, "no modes present, add default mode");
+		lt9611_add_default_mode(&lt9611->connector, &default_mode_1080p);
 	}
 
-	preferred_mode = list_first_entry(&connector->probed_modes,
-			struct drm_display_mode, head);
-	list_for_each_entry_safe(cur_mode, t, &connector->probed_modes, head) {
-		cur_mode->type &= ~DRM_MODE_TYPE_PREFERRED;
-		if (cur_mode == preferred_mode) {
-			continue;
+	if (lt9611->fix_mode) {
+		list_for_each_entry(mode, &connector->probed_modes, head) {
+			mode->type &= ~DRM_MODE_TYPE_PREFERRED;
+			if (lt9611->debug_mode.vdisplay == mode->vdisplay &&
+				lt9611->debug_mode.hdisplay == mode->hdisplay &&
+				lt9611->debug_mode.vrefresh == drm_mode_vrefresh(mode) &&
+				297000 >= mode->clock) {
+				mode->type |= DRM_MODE_TYPE_PREFERRED;
+			}
 		}
-
-		/* Largest mode is preferred */
-		if (MODE_SIZE(cur_mode) > MODE_SIZE(preferred_mode))
-			preferred_mode = cur_mode;
-
-		cur_vrefresh = drm_mode_vrefresh(cur_mode);
-		preferred_vrefresh = drm_mode_vrefresh(preferred_mode);
-
-		/* At a given size, try to get closest to target refresh */
-		if ((MODE_SIZE(cur_mode) == MODE_SIZE(preferred_mode)) &&
-			MODE_REFRESH_DIFF(cur_vrefresh, target_refresh) <
-			MODE_REFRESH_DIFF(preferred_vrefresh, target_refresh) &&
-			cur_vrefresh <= target_refresh) {
-			preferred_mode = cur_mode;
+	} else {
+		if (!of_property_read_string(lt9611->dev->of_node, "config-mode", &string)) {
+			if (!strcmp("edidAdaptiveResolution", string)) {
+				dev_err(lt9611->dev, "edid Adaptive Resolution");
+				return;
+			} else {
+				if (!strcmp("1920x1080x60", string)) {
+					lt9611_add_default_mode(&lt9611->connector, &default_mode_1080p);
+				} else if (!strcmp("2560x1440x60", string)) {
+					lt9611_add_default_mode(&lt9611->connector, &default_mode_1440p);
+				} else if (!strcmp("3840x2160x30", string)) {
+					lt9611_add_default_mode(&lt9611->connector, &default_mode_4k30);
+				} else if (!strcmp("1280x720x60", string)) {
+					lt9611_add_default_mode(&lt9611->connector, &default_mode_720p);
+				} else {
+					lt9611_add_default_mode(&lt9611->connector, &default_mode_1080p);
+				}
+			}
+		} else {
+			dev_err(lt9611->dev, "Failed to read config-mode property\n");
 		}
 	}
-
-	preferred_mode->type |= DRM_MODE_TYPE_PREFERRED;
 }
 
 static int lt9611_connector_get_modes(struct drm_connector *connector)
@@ -1308,6 +1348,7 @@ static int lt9611_connector_get_modes(struct drm_connector *connector)
 	lt9611->edid = lt9611->bridge.funcs->get_edid(&lt9611->bridge, connector);
 	drm_connector_update_edid_property(connector, lt9611->edid);
 	count = drm_add_edid_modes(connector, lt9611->edid);
+	lt9611_set_preferred_mode(connector);
 
 	/* TODO: add checks for num_of_edid_ext_blk == 0 case */
 	if (lt9611->cec_support)
@@ -1333,7 +1374,7 @@ static enum drm_mode_status lt9611_connector_mode_valid(struct drm_connector *co
 	pclk = pclk / 1000;
 
 	/* 3840x2160@30Hz */
-	if (pclk > 297000) {
+	if (pclk >= 297000) {
 		return MODE_BAD;
 	}
 
@@ -1426,7 +1467,7 @@ lt9611_bridge_mode_valid(struct drm_bridge *bridge,
 	pclk = pclk / 1000;
 
 	/* 3840x2160@30Hz */
-	if (pclk > 297000) {
+	if (pclk >= 297000) {
 		return MODE_BAD;
 	}
 
@@ -2114,6 +2155,36 @@ static ssize_t edid_mode_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct lt9611 *lt9611 = dev_get_drvdata(dev);
+	u8 buf_1[128];
+	u8 buf_2[128];
+	int i;
+
+	lt9611_get_edid_block(lt9611, buf_1, 0, 128);
+	lt9611_get_edid_block(lt9611, buf_2, 1, 128);
+
+	dev_err(lt9611->dev, "EDID Block 1:\n");
+	for (i = 0; i < 128; i += 16) {
+		dev_err(lt9611->dev, "0x%02x 0x%02x 0x%02x 0x%02x \
+				0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x \
+				0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x \
+				0x%02x 0x%02x\n",
+				buf_1[i], buf_1[i + 1], buf_1[i + 2], buf_1[i + 3],
+				buf_1[i + 4], buf_1[i + 5], buf_1[i + 6], buf_1[i + 7],
+				buf_1[i + 8], buf_1[i + 9], buf_1[i + 10], buf_1[i + 11],
+				buf_1[i + 12], buf_1[i + 13], buf_1[i + 14], buf_1[i + 15]);
+	}
+
+	dev_err(lt9611->dev, "EDID Block 2:\n");
+	for (i = 0; i < 128; i += 16) {
+		dev_err(lt9611->dev, "0x%02x 0x%02x 0x%02x 0x%02x \
+				0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x \
+				0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x \
+				0x%02x 0x%02x\n",
+				buf_2[i], buf_2[i + 1], buf_2[i + 2], buf_2[i + 3],
+				buf_2[i + 4], buf_2[i + 5], buf_2[i + 6], buf_2[i + 7],
+				buf_2[i + 8], buf_2[i + 9], buf_2[i + 10], buf_2[i + 11],
+				buf_2[i + 12], buf_2[i + 13], buf_2[i + 14], buf_2[i + 15]);
+	}
 
 	return scnprintf(buf, PAGE_SIZE, "curr_mode: hdisplay x vdisplay x vrefresh = %dx%dx%d\n",
 			lt9611->curr_mode.hdisplay, lt9611->curr_mode.vdisplay,
@@ -2136,7 +2207,12 @@ static ssize_t edid_mode_store(struct device *dev,
 	if (!hdisplay || !vdisplay || !vrefresh)
 		goto err;
 
-	dev_info(lt9611->dev, "fixed mode hdisplay=%d vdisplay=%d, vrefresh=%d\n",
+	lt9611->fix_mode = true;
+	lt9611->debug_mode.hdisplay = hdisplay;
+	lt9611->debug_mode.vdisplay = vdisplay;
+	lt9611->debug_mode.vrefresh = vrefresh;
+
+	dev_err(lt9611->dev, "fixed mode hdisplay=%d vdisplay=%d, vrefresh=%d\n",
 			hdisplay, vdisplay, vrefresh);
 
 	return count;
