@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (c) 2014-2021, The Linux Foundation. All rights reserved.
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
@@ -5981,10 +5981,10 @@ static int sde_encoder_setup_display(struct sde_encoder_virt *sde_enc,
 	int i = 0;
 	enum sde_intf_type intf_type;
 	struct sde_encoder_virt_ops parent_ops = {
-		sde_encoder_vblank_callback,
-		sde_encoder_underrun_callback,
-		sde_encoder_frame_done_callback,
-		_sde_encoder_get_qsync_fps_callback,
+		.handle_vblank_virt = sde_encoder_vblank_callback,
+		.handle_underrun_virt = sde_encoder_underrun_callback,
+		.handle_frame_done = sde_encoder_frame_done_callback,
+		.get_qsync_fps = _sde_encoder_get_qsync_fps_callback,
 	};
 	struct sde_enc_phys_init_params phys_params;
 
