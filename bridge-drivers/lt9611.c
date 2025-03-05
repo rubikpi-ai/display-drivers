@@ -1300,18 +1300,13 @@ static void lt9611_set_preferred_mode(struct drm_connector *connector)
 	char new_string[32];
 	bool preferred_mode_set = false;
 
-	if (list_empty(&connector->probed_modes)) {
-		dev_err(lt9611->dev, "no modes present, add default mode");
-		lt9611_add_default_mode(&lt9611->connector, &default_mode_1080p);
-	}
-
 	if (lt9611->fix_mode) {
 		list_for_each_entry(mode, &connector->probed_modes, head) {
 			mode->type &= ~DRM_MODE_TYPE_PREFERRED;
 			if (lt9611->debug_mode.vdisplay == mode->vdisplay &&
 				lt9611->debug_mode.hdisplay == mode->hdisplay &&
 				lt9611->debug_mode.vrefresh == drm_mode_vrefresh(mode) &&
-				297000 >= mode->clock) {
+				297000 > mode->clock) {
 				mode->type |= DRM_MODE_TYPE_PREFERRED;
 			}
 		}
@@ -1319,7 +1314,6 @@ static void lt9611_set_preferred_mode(struct drm_connector *connector)
 		if (!of_property_read_string(lt9611->dev->of_node, "config-mode", &string)) {
 			if (!strcmp("edidAdaptiveResolution", string)) {
 				dev_err(lt9611->dev, "edid Adaptive Resolution");
-				return;
 			} else {
 				if (!strcmp("1920x1080x60", string)) {
 					lt9611_add_default_mode(&lt9611->connector, &default_mode_1080p);
@@ -1374,7 +1368,7 @@ static enum drm_mode_status lt9611_connector_mode_valid(struct drm_connector *co
 	pclk = pclk / 1000;
 
 	/* 3840x2160@30Hz */
-	if (pclk >= 297000) {
+	if (pclk > 297000) {
 		return MODE_BAD;
 	}
 
@@ -1467,7 +1461,7 @@ lt9611_bridge_mode_valid(struct drm_bridge *bridge,
 	pclk = pclk / 1000;
 
 	/* 3840x2160@30Hz */
-	if (pclk >= 297000) {
+	if (pclk > 297000) {
 		return MODE_BAD;
 	}
 
