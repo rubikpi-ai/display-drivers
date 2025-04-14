@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (c) 2017-2020, The Linux Foundation. All rights reserved.
  */
 
@@ -84,11 +84,17 @@ static void default_dump_reg(void)
 static void set_default_dma_ops(struct sde_hw_reg_dma *reg_dma)
 {
 	const static struct sde_hw_reg_dma_ops ops = {
-		default_check_support, default_setup_payload,
-		default_kick_off, default_reset, default_alloc_reg_dma_buf,
-		default_dealloc_reg_dma, default_buf_reset_reg_dma,
-		default_last_command, default_last_command_sb,
-		default_dump_reg};
+		.check_support = default_check_support,
+		.setup_payload = default_setup_payload,
+		.kick_off = default_kick_off,
+		.reset = default_reset,
+		.alloc_reg_dma_buf = default_alloc_reg_dma_buf,
+		.dealloc_reg_dma = default_dealloc_reg_dma,
+		.reset_reg_dma_buf = default_buf_reset_reg_dma,
+		.last_command = default_last_command,
+		.last_command_sb = default_last_command_sb,
+		.dump_regs = default_dump_reg
+	};
 	memcpy(&reg_dma->ops, &ops, sizeof(ops));
 }
 
