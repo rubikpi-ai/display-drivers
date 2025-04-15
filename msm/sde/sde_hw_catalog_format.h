@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2022, 2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (c) 2015-2019, 2021 The Linux Foundation. All rights reserved.
  */
 
@@ -60,6 +60,12 @@
 #define SDE_IS_IN_ROT_RESTRICTED_FMT(catalog, fmt) (catalog ? \
 		(sde_format_validate_fmt(NULL, fmt, \
 		catalog->inline_rot_restricted_formats) == 0) : false)
+
+static const uint64_t supported_format_modifiers[] = {
+	DRM_FORMAT_MOD_QCOM_COMPRESSED,
+	DRM_FORMAT_MOD_LINEAR,
+	DRM_FORMAT_MOD_INVALID
+};
 
 static const struct sde_format_extended plane_formats[] = {
 	RGB_FMTS,
