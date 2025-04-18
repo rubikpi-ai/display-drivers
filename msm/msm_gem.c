@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023, 2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
@@ -1168,9 +1168,9 @@ int msm_gem_delayed_import(struct drm_gem_object *obj)
 	}
 
 	attach = obj->import_attach;
-	#if __has_include(<linux/qcom-dma-mapping.h>)
+# if IS_ENABLED(CONFIG_QCOM_LAZY_MAPPING)
 	attach->dma_map_attrs |= DMA_ATTR_DELAYED_UNMAP;
-	#endif
+#endif
 
 	/*
 	 * dma_buf_map_attachment will call dma_map_sg for ion buffer

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024, 2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
@@ -221,7 +221,7 @@ struct drm_gem_object *msm_gem_prime_import(struct drm_device *dev,
 		DRM_ERROR("dma_buf_attach failure, err=%ld\n", PTR_ERR(attach));
 		return ERR_CAST(attach);
 	}
-	#if __has_include (<linux/mem-buf.h>)
+# if IS_ENABLED(CONFIG_QCOM_LAZY_MAPPING)
 	/*
 	 * For cached buffers where CPU access is required, dma_map_attachment
 	 * must be called now to allow user-space to perform cpu sync begin/end
@@ -229,9 +229,9 @@ struct drm_gem_object *msm_gem_prime_import(struct drm_device *dev,
 	 */
 	if (lazy_unmap)
 		attach->dma_map_attrs |= DMA_ATTR_DELAYED_UNMAP;
+#endif
 
 	attach->dma_map_attrs |= dma_map_attrs;
-	#endif
 	/*
 	 * avoid map_attachment for S2-only buffers and TVM buffers as it needs to be mapped
 	 * after the SID switch scm_call and will be handled during msm_gem_get_dma_addr

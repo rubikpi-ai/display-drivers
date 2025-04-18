@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
+ * Copyright (c) 2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (c) 2012-2021, The Linux Foundation. All rights reserved.
  */
 
@@ -66,6 +67,7 @@ struct dp_hpd_cb {
  * @multi_func: multi-function preferred, USBPD type only
  * @peer_usb_com: downstream supports usb data communication
  * @force_multi_func: force multi-function preferred
+ * @flip_lanes: DP lanes selection in case of force_multi_func
  * @isr: event interrupt, BUILTIN and LPHW type only
  * @register_hpd: register hardware callback
  * @host_init: source or host side setup for hpd
@@ -83,6 +85,7 @@ struct dp_hpd {
 	bool multi_func;
 	bool peer_usb_comm;
 	bool force_multi_func;
+	bool flip_lanes;
 
 	void (*isr)(struct dp_hpd *dp_hpd);
 	int (*register_hpd)(struct dp_hpd *dp_hpd);
