@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (c) 2015-2021, The Linux Foundation. All rights reserved.
  */
 
@@ -948,8 +948,11 @@ uint32_t sde_format_get_framebuffer_size(
 	struct sde_hw_fmt_layout layout;
 
 	fmt = sde_get_sde_format_ext(format, modifier);
-	if (!fmt)
+	if (!fmt) {
+		SDE_ERROR("unsupported fmt: %4.4s modifier 0x%llX\n",
+			(char *)&format, modifier);
 		return 0;
+	}
 
 	if (!pitches)
 		return -EINVAL;
@@ -1264,7 +1267,7 @@ const struct sde_format *sde_get_sde_format_ext(
 	}
 
 	if (fmt == NULL)
-		SDE_ERROR("unsupported fmt: %4.4s modifier 0x%llX\n",
+		SDE_DEBUG("unsupported fmt: %4.4s modifier 0x%llX\n",
 				(char *)&format, modifier);
 	else
 		SDE_DEBUG("fmt %4.4s mod 0x%llX ubwc %d yuv %d\n",

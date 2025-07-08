@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
@@ -216,6 +216,7 @@ enum msm_mdp_conn_property {
 	CONNECTOR_PROP_DEMURA_PANEL_ID,
 	CONNECTOR_PROP_DIMMING_BL_LUT,
 	CONNECTOR_PROP_DNSC_BLUR,
+	CONNECTOR_PROP_PANEL_ORIENTATION,
 
 	/* # of blob properties */
 	CONNECTOR_PROP_BLOBCOUNT,

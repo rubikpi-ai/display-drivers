@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
  */
 
@@ -25,11 +25,26 @@
 #define DEFAULT_PANEL_JITTER_ARRAY_SIZE		2
 #define DEFAULT_PANEL_PREFILL_LINES	25
 
+enum dsi_panel_orientation {
+	DSI_PANEL_ORIENTATION_NORMAL = 0,
+	DSI_PANEL_ORIENTATION_UPSIDE_DOWN,
+	DSI_PANEL_ORIENTATION_LEFT_SIDE_UP,
+	DSI_PANEL_ORIENTATION_RIGHT_SIDE_UP,
+	DSI_PANEL_ORIENTATION_MAX
+};
+
 static struct dsi_display_mode_priv_info default_priv_info = {
 	.panel_jitter_numer = DEFAULT_PANEL_JITTER_NUMERATOR,
 	.panel_jitter_denom = DEFAULT_PANEL_JITTER_DENOMINATOR,
 	.panel_prefill_lines = DEFAULT_PANEL_PREFILL_LINES,
 	.dsc_enabled = false,
+};
+
+static const struct drm_prop_enum_list e_panel_orientation[] = {
+	{DSI_PANEL_ORIENTATION_NORMAL, "Normal"},
+	{DSI_PANEL_ORIENTATION_UPSIDE_DOWN, "Upside Down"},
+	{DSI_PANEL_ORIENTATION_LEFT_SIDE_UP, "Left Side Up"},
+	{DSI_PANEL_ORIENTATION_RIGHT_SIDE_UP, "Right Side Up"},
 };
 
 static void convert_to_dsi_mode(const struct drm_display_mode *drm_mode,
@@ -768,11 +783,14 @@ int dsi_conn_set_info_blob(struct drm_connector *connector,
 	struct dsi_panel *panel;
 	enum dsi_pixel_format fmt;
 	u32 bpp;
+	struct sde_connector *sde_conn;
+	int panel_orien_idx = 0;
 
 	if (!info || !dsi_display)
 		return -EINVAL;
 
 	dsi_display->drm_conn = connector;
+	sde_conn = to_sde_connector(connector);
 
 	sde_kms_info_add_keystr(info,
 		"display type", dsi_display->display_type);
@@ -843,22 +861,31 @@ int dsi_conn_set_info_blob(struct drm_connector *connector,
 	switch (panel->phy_props.rotation) {
 	case DSI_PANEL_ROTATE_NONE:
 		sde_kms_info_add_keystr(info, "panel orientation", "none");
+		panel_orien_idx = 0;	// get selected for 0 degree
 		break;
 	case DSI_PANEL_ROTATE_H_FLIP:
 		sde_kms_info_add_keystr(info, "panel orientation", "horz flip");
+		panel_orien_idx = 3;	// get selected for 90 degree
 		break;
 	case DSI_PANEL_ROTATE_V_FLIP:
 		sde_kms_info_add_keystr(info, "panel orientation", "vert flip");
+		panel_orien_idx = 2;	//get selected for 270 degree
 		break;
 	case DSI_PANEL_ROTATE_HV_FLIP:
 		sde_kms_info_add_keystr(info, "panel orientation",
 							"horz & vert flip");
+		panel_orien_idx = 1;	//get selected for 180 degree
 		break;
 	default:
 		DSI_DEBUG("invalid panel rotation:%d\n",
 						panel->phy_props.rotation);
 		break;
 	}
+
+	msm_property_install_enum(&sde_conn->property_info,
+			"panel orientation", 0, 0, e_panel_orientation,
+			ARRAY_SIZE(e_panel_orientation), panel_orien_idx,
+			CONNECTOR_PROP_PANEL_ORIENTATION);
 
 	switch (panel->bl_config.type) {
 	case DSI_BACKLIGHT_PWM:
