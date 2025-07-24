@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (C) 2014-2021 The Linux Foundation. All rights reserved.
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
@@ -5146,7 +5146,7 @@ struct drm_plane *sde_plane_init(struct drm_device *dev,
 		type = DRM_PLANE_TYPE_OVERLAY;
 	ret = drm_universal_plane_init(dev, plane, 0xff, &sde_plane_funcs,
 				psde->formats, psde->nformats,
-				NULL, type, NULL);
+				supported_format_modifiers, type, NULL);
 	if (ret)
 		goto clean_sspp;
 

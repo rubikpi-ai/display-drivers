@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2021-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2025, Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
  */
 
@@ -1130,6 +1130,12 @@ static int dp_display_host_init(struct dp_display_private *dp)
 
 	if (dp->hpd->orientation == ORIENTATION_CC2)
 		flip = true;
+
+	if (dp->hpd->force_multi_func) {
+		dp->hpd->multi_func = true;
+		if (dp->hpd->flip_lanes)
+			flip = true;
+	}
 
 	reset = dp->debug->sim_mode ? false : !dp->hpd->multi_func;
 
